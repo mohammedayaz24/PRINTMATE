@@ -158,19 +158,8 @@ body {
         flex-direction: column;
         gap: 2em;
         margin-top: 3em;
-    }
-    .brand-logo {
-        left: 16px;
-        top: 16px;
-        font-size: 1.5rem;
-    }
-}
-@media (max-width: 900px) {
-    .login-panels {
-        flex-direction: column;
-        gap: 2em;
-        margin-top: 3em;
         align-items: center;
+        width: 100%;
     }
     .brand-logo {
         left: 16px;
@@ -187,6 +176,12 @@ body {
 @media (max-width: 600px) {
     .container {
         padding: 0 0.5em;
+        width: 100%;
+    }
+    .login-panels {
+        margin-top: 1.5em;
+        gap: 1em;
+        width: 100%;
     }
     .login-box, .signup-box {
         min-width: 98vw;
@@ -197,10 +192,6 @@ body {
         font-size: 1.1rem;
         left: 8px;
         top: 8px;
-    }
-    .login-panels {
-        margin-top: 1.5em;
-        gap: 1em;
     }
     .signup-link {
         font-size: 1em;

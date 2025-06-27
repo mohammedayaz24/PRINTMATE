@@ -165,3 +165,44 @@ body {
         font-size: 1.5rem;
     }
 }
+@media (max-width: 900px) {
+    .login-panels {
+        flex-direction: column;
+        gap: 2em;
+        margin-top: 3em;
+        align-items: center;
+    }
+    .brand-logo {
+        left: 16px;
+        top: 16px;
+        font-size: 1.5rem;
+    }
+    .login-box, .signup-box {
+        min-width: 80vw;
+        max-width: 90vw;
+        padding: 2em 1em 1.5em 1em;
+    }
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 0 0.5em;
+    }
+    .login-box, .signup-box {
+        min-width: 98vw;
+        max-width: 99vw;
+        padding: 1.2em 0.5em 1em 0.5em;
+    }
+    .brand-logo {
+        font-size: 1.1rem;
+        left: 8px;
+        top: 8px;
+    }
+    .login-panels {
+        margin-top: 1.5em;
+        gap: 1em;
+    }
+    .signup-link {
+        font-size: 1em;
+    }
+}

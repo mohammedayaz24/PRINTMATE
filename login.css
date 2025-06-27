@@ -1,0 +1,167 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4eded;
+    min-height: 100vh;
+}
+
+.brand-logo {
+    position: absolute;
+    top: 24px;
+    left: 36px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2d3a60;
+    letter-spacing: 2px;
+    z-index: 10;
+    user-select: none;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.login-panels {
+    display: flex;
+    gap: 2.5em;
+    margin-top: 5em;
+    margin-bottom: 1.5em;
+}
+
+.login-box, .signup-box {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 32px 0 rgba(44, 62, 80, 0.10);
+    padding: 2.5em 2em 2em 2em;
+    min-width: 320px;
+    max-width: 350px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.login-box h2, .signup-box h2 {
+    color: #2d3a60;
+    margin-bottom: 1.5em;
+    font-size: 1.6em;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.login-box form, .signup-box form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1em;
+}
+
+.login-box input, .signup-box input, .signup-box select {
+    width: 100%;
+    padding: 0.9em;
+    border: 1.5px solid #dbe3ef;
+    border-radius: 10px;
+    background: #f7faff;
+    color: #2d3a60;
+    font-size: 1em;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.login-box input:focus, .signup-box input:focus, .signup-box select:focus {
+    border: 1.5px solid #4b6cb7;
+    background: #fff;
+}
+
+.login-box input::placeholder, .signup-box input::placeholder {
+    color: #8ca0c3;
+    opacity: 1;
+}
+
+.login-box button, .signup-box button {
+    width: 100%;
+    padding: 0.85em;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 0.5em;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+    letter-spacing: 1px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.login-box button:hover, .signup-box button:hover {
+    background: linear-gradient(90deg, #182848 0%, #4b6cb7 100%);
+    color: #fff;
+}
+
+.signup-link {
+    text-align: center;
+    margin-top: 1.5em;
+    color: #2d3a60;
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.signup-link a {
+    color: #4b6cb7;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-left: 0.5em;
+    transition: color 0.2s;
+}
+
+.signup-link a:hover {
+    color: #182848;
+}
+
+.signup-box {
+    margin-top: 2em;
+    display: none;
+}
+
+.signup-box select {
+    color: #2d3a60;
+    background: #f7faff;
+    border: 1.5px solid #dbe3ef;
+    border-radius: 8px;
+    padding: 0.9em;
+    font-size: 1em;
+}
+
+.back-login {
+    text-align: center;
+    margin-top: 1em;
+}
+
+.back-login a {
+    color: #4b6cb7;
+    font-weight: bold;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.back-login a:hover {
+    color: #182848;
+}
+
+@media (max-width: 900px) {
+    .login-panels {
+        flex-direction: column;
+        gap: 2em;
+        margin-top: 3em;
+    }
+    .brand-logo {
+        left: 16px;
+        top: 16px;
+        font-size: 1.5rem;
+    }
+}

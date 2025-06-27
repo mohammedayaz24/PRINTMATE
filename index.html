@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRINTMATE</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 8s ease-in-out infinite alternate;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%;}
+            100% { background-position: 100% 50%;}
+        }
+        .title {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 4px;
+            text-shadow: 0 8px 32px rgba(44, 62, 80, 0.25), 0 2px 8px #283eec44;
+            margin-bottom: 2.5rem;
+            animation: fadeInDown 1s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translateY(-60px);}
+            100% { opacity: 1; transform: translateY(0);}
+        }
+        .get-started-btn {
+            padding: 1em 3em;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+            border: none;
+            border-radius: 40px;
+            box-shadow: 0 4px 24px 0 rgba(44, 62, 80, 0.18), 0 0 0 0 #4b6cb7;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+            animation: fadeInUp 1.2s cubic-bezier(.68,-0.55,.27,1.55), glowPulse 2s infinite alternate;
+        }
+        .get-started-btn:hover {
+            background: linear-gradient(90deg, #182848 0%, #4b6cb7 100%);
+            transform: scale(1.07) translateY(-4px);
+            box-shadow: 0 8px 32px 0 rgba(44, 62, 80, 0.28), 0 0 32px 8px #4b6cb788;
+        }
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(60px);}
+            100% { opacity: 1; transform: translateY(0);}
+        }
+        @keyframes glowPulse {
+            0% {
+                box-shadow: 0 4px 24px 0 rgba(44, 62, 80, 0.18), 0 0 0 0 #4b6cb7;
+            }
+            100% {
+                box-shadow: 0 4px 24px 0 rgba(44, 62, 80, 0.18), 0 0 32px 8px #4b6cb788;
+            }
+        }
+        .printer-emoji {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 1.2rem;
+            animation: popIn 1.2s cubic-bezier(.68,-0.55,.27,1.55), floaty 3s ease-in-out infinite alternate;
+        }
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.5);}
+            80% { opacity: 1; transform: scale(1.15);}
+            100% { opacity: 1; transform: scale(1);}
+        }
+        @keyframes floaty {
+            0% { transform: translateY(0) scale(1);}
+            100% { transform: translateY(-18px) scale(1.05);}
+        }
+    </style>
+</head>
+<body>
+    <span class="printer-emoji">🖨️</span>
+    <div class="title">PRINTMATE</div>
+    <button class="get-started-btn" onclick="window.location.href='login.html'">Get Started</button>
+</body>
+</html>

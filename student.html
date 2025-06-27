@@ -1,14 +1,208 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Student Dashboard - PRINTMATE</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f7fb;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2em 2em 1.2em 2em;
+            background: #fff;
+            box-shadow: 0 2px 12px 0 rgba(44, 62, 80, 0.06);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .brand-logo {
+            font-size: 1.7rem;
+            font-weight: bold;
+            color: #2d3a60;
+            letter-spacing: 2px;
+            user-select: none;
+            display: flex;
+            align-items: center;
+        }
+        .user-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.7rem;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+            cursor: pointer;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .user-circle:hover {
+            box-shadow: 0 4px 16px rgba(44,62,80,0.18);
+            transform: scale(1.07);
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 2em;
+        }
+        h1 {
+            color: #2d3a60;
+            margin-bottom: 0.5em;
+        }
+        .services-section {
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+            margin: 2em 0 2.5em 0;
+            position: relative;
+        }
+        .services-slider {
+            display: flex;
+            gap: 1.5em;
+            animation: slideServices 18s linear infinite;
+        }
+        @keyframes slideServices {
+            0% { transform: translateX(0);}
+            100% { transform: translateX(-60%);}
+        }
+        .service-box {
+            min-width: 220px;
+            max-width: 220px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(44, 62, 80, 0.10);
+            padding: 1.5em 1em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1em;
+            color: #2d3a60;
+            font-weight: 500;
+            transition: box-shadow 0.2s, transform 0.2s;
+            margin-bottom: 0.5em;
+        }
+        .service-box:hover {
+            box-shadow: 0 6px 24px 0 rgba(44, 62, 80, 0.18);
+            transform: scale(1.04);
+        }
+        .order-btn {
+            margin: 2em 0 1em 0;
+            padding: 1em 3em;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+            border: none;
+            border-radius: 40px;
+            box-shadow: 0 4px 24px 0 rgba(44, 62, 80, 0.13);
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+        }
+        .order-btn:hover {
+            background: linear-gradient(90deg, #182848 0%, #4b6cb7 100%);
+            transform: scale(1.07) translateY(-4px);
+            box-shadow: 0 8px 32px 0 rgba(44, 62, 80, 0.18);
+        }
+        footer {
+            width: 100%;
+            text-align: center;
+            padding: 1.2em 0 1em 0;
+            background: #f0f4fa;
+            color: #4b6cb7;
+            font-size: 1em;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        @media (max-width: 900px) {
+            .services-section {
+                max-width: 98vw;
+            }
+            .service-box {
+                min-width: 170px;
+                max-width: 170px;
+                font-size: 1em;
+            }
+        }
+        @media (max-width: 600px) {
+            .header {
+                padding: 0.7em 1em 0.7em 1em;
+            }
+            .brand-logo {
+                font-size: 1.1rem;
+            }
+            .user-circle {
+                width: 36px;
+                height: 36px;
+                font-size: 1.1rem;
+            }
+            .container {
+                margin-top: 1em;
+            }
+            .services-section {
+                margin: 1em 0 1.5em 0;
+            }
+            .service-box {
+                min-width: 120px;
+                max-width: 120px;
+                font-size: 0.9em;
+                padding: 1em 0.5em;
+            }
+            .order-btn {
+                padding: 0.8em 1.5em;
+                font-size: 1em;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="brand-logo">🖨️ PRINTMATE</div>
+    <div class="header">
+        <div class="brand-logo">🖨️ PRINTMATE</div>
+        <div class="user-circle" title="Account">
+            <span>&#128100;</span>
+        </div>
+    </div>
     <div class="container">
         <h1>Welcome, Student!</h1>
         <p>Your personalized dashboard will be available soon.</p>
+        <div class="services-section">
+            <div class="services-slider">
+                <div class="service-box">Color Printing</div>
+                <div class="service-box">Spiral Binding</div>
+                <div class="service-box">Soft Binding</div>
+                <div class="service-box">Lamination</div>
+                <div class="service-box">Record Work</div>
+                <div class="service-box">Photocopy</div>
+                <!-- Repeat for smooth animation -->
+                <div class="service-box">Color Printing</div>
+                <div class="service-box">Spiral Binding</div>
+                <div class="service-box">Soft Binding</div>
+                <div class="service-box">Lamination</div>
+                <div class="service-box">Record Work</div>
+                <div class="service-box">Photocopy</div>
+            </div>
+        </div>
+        <button class="order-btn" onclick="window.location.href='order.html'">Order Now</button>
     </div>
+    <footer>
+        Developed by CSE students
+    </footer>
 </body>
 </html>

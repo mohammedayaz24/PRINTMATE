@@ -12,6 +12,10 @@
       display: none;
       margin-bottom: 1em;
     }
+    .cost-box {
+      margin-top: 18px;
+      margin-bottom: 18px;
+    }
   </style>
 </head>
 <body>
@@ -26,7 +30,6 @@
       <span><strong>File:</strong> <span id="fileName">-</span></span><br>
       <span><strong>Pages:</strong> <span id="pageCount">-</span></span>
     </div>
-
     <!-- Manual page input for DOC/DOCX -->
     <div id="manualPageInput">
       <label>Enter Number of Pages (for DOC/DOCX):</label>
@@ -34,42 +37,33 @@
     </div>
 
     <h3>Print Options</h3>
-
     <label>Page Fragmentation</label>
     <select id="fragmentation" onchange="updateCost()">
       <option value="one">One side</option>
       <option value="two">Two side</option>
     </select>
-
     <label>Color</label>
     <select id="colorType" onchange="updateCost()">
       <option value="bw">Black & White</option>
       <option value="color">Color</option>
     </select>
-
     <label>No. of Copies</label>
     <input type="number" id="copies" min="1" value="1" placeholder="Enter number of copies" oninput="updateCost()">
-
     <label>Binding</label>
     <select id="binding" onchange="updateCost()">
       <option value="spiral">Spiral (+₹30)</option>
       <option value="soft">Soft (+₹40)</option>
       <option value="none">None (+₹0)</option>
     </select>
-
     <div class="cost-box">
       <strong>Estimated Cost: ₹<span id="cost">--</span></strong>
     </div>
-
     <label>Username</label>
     <input type="text" id="username" placeholder="Enter your name" required>
-
     <label>Roll Number</label>
     <input type="text" id="rollno" placeholder="Enter your roll number" required>
-
     <button onclick="placeOrder()">Place Order</button>
   </div>
-
   <script>
     let pageCount = 0;
     let fileName = "";
@@ -77,7 +71,8 @@
     let fileType = "";
 
     function getPdfjsLib() {
-      return window['pdfjsLib'] || window['pdfjs-dist/build/pdf'];
+      // Try both possible globals for PDF.js
+      return window.pdfjsLib || window['pdfjsLib'] || window['pdfjs-dist/build/pdf'];
     }
 
     function handleFileUpload(event) {
@@ -107,12 +102,13 @@
           if (result) {
             const typedarray = new Uint8Array(result);
             const pdfjsLib = getPdfjsLib();
-            if (pdfjsLib && pdfjsLib.getDocument) {
+            if (pdfjsLib && typeof pdfjsLib.getDocument === "function") {
               pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
                 pageCount = pdf.numPages;
                 document.getElementById('pageCount').textContent = pageCount;
                 updateCost();
-              }, function(err) {
+              }).catch(function(err) {
+                console.error(err);
                 pageCount = 0;
                 document.getElementById('pageCount').textContent = "Error";
                 updateCost();

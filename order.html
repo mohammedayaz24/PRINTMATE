@@ -6,6 +6,13 @@
   <title>PrintMate - Upload</title>
   <link rel="stylesheet" href="order.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+  <style>
+    /* Optional: Hide manual page input by default */
+    #manualPageInput {
+      display: none;
+      margin-bottom: 1em;
+    }
+  </style>
 </head>
 <body>
   <div class="brand-logo">🖨️ PRINTMATE</div>
@@ -18,6 +25,12 @@
     <div class="file-info">
       <span><strong>File:</strong> <span id="fileName">-</span></span><br>
       <span><strong>Pages:</strong> <span id="pageCount">-</span></span>
+    </div>
+
+    <!-- Manual page input for DOC/DOCX -->
+    <div id="manualPageInput">
+      <label>Enter Number of Pages (for DOC/DOCX):</label>
+      <input type="number" id="manualPageCount" min="1" placeholder="Enter pages" oninput="manualPageCountChange()">
     </div>
 
     <h3>Print Options</h3>
@@ -61,14 +74,26 @@
     let pageCount = 0;
     let fileName = "";
     let fileDataUrl = "";
+    let fileType = "";
+
+    // Error handler for debugging
+    window.onerror = function(msg, url, line, col, error) {
+      console.log('JS Error:', msg, url, line, col, error);
+      return false;
+    };
 
     function handleFileUpload(event) {
       const input = event.target;
       const file = input.files[0];
       fileName = file ? file.name : "";
+      fileType = file ? file.type : "";
       document.getElementById('fileName').textContent = fileName || "-";
       document.getElementById('fileLabel').textContent = fileName || "Click or drag PDF/DOC file here to upload";
       fileDataUrl = "";
+
+      // Hide manual page input by default
+      document.getElementById('manualPageInput').style.display = "none";
+      document.getElementById('manualPageCount').value = "";
 
       if (!file) {
         pageCount = 0;
@@ -79,6 +104,8 @@
 
       // Only count pages for PDF
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        // Hide manual input
+        document.getElementById('manualPageInput').style.display = "none";
         const reader = new FileReader();
         reader.onload = function(e) {
           const typedarray = new Uint8Array(e.target.result);
@@ -86,7 +113,7 @@
             pageCount = pdf.numPages;
             document.getElementById('pageCount').textContent = pageCount;
             updateCost();
-          }, function() {
+          }, function(err) {
             pageCount = 0;
             document.getElementById('pageCount').textContent = "Error";
             updateCost();
@@ -94,9 +121,10 @@
         };
         reader.readAsArrayBuffer(file);
       } else {
-        // For DOC/DOCX, can't count pages in browser
+        // For DOC/DOCX, can't count pages in browser - show manual input
         pageCount = 0;
         document.getElementById('pageCount').textContent = "-";
+        document.getElementById('manualPageInput').style.display = "block";
         updateCost();
       }
 
@@ -106,6 +134,13 @@
         fileDataUrl = e.target.result;
       };
       fileReader.readAsDataURL(file);
+    }
+
+    function manualPageCountChange() {
+      const manualValue = parseInt(document.getElementById('manualPageCount').value) || 0;
+      pageCount = manualValue;
+      document.getElementById('pageCount').textContent = manualValue > 0 ? manualValue : "-";
+      updateCost();
     }
 
     function updateCost() {
@@ -150,8 +185,8 @@
       const cost = document.getElementById('cost').textContent;
       const file = document.getElementById('fileInput').files[0];
 
-      if (!file || !username || !rollno || cost === "--") {
-        alert("Please fill all fields and upload a file.");
+      if (!file || !username || !rollno || cost === "--" || (pageCount === 0 && binding === "none")) {
+        alert("Please fill all fields, upload a file, and enter page count if needed.");
         return;
       }
 
@@ -176,3 +211,5 @@
       window.location.href = "admin.html";
     }
   </script>
+</body>
+</html>

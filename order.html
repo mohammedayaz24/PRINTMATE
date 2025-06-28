@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PrintMate - Upload</title>
   <link rel="stylesheet" href="order.css">
+  <!-- Load PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
   <style>
-    /* Optional: Hide manual page input by default */
     #manualPageInput {
       display: none;
       margin-bottom: 1em;
@@ -76,11 +76,9 @@
     let fileDataUrl = "";
     let fileType = "";
 
-    // Error handler for debugging
-    window.onerror = function(msg, url, line, col, error) {
-      console.log('JS Error:', msg, url, line, col, error);
-      return false;
-    };
+    function getPdfjsLib() {
+      return window['pdfjsLib'] || window['pdfjs-dist/build/pdf'];
+    }
 
     function handleFileUpload(event) {
       const input = event.target;
@@ -91,7 +89,6 @@
       document.getElementById('fileLabel').textContent = fileName || "Click or drag PDF/DOC file here to upload";
       fileDataUrl = "";
 
-      // Hide manual page input by default
       document.getElementById('manualPageInput').style.display = "none";
       document.getElementById('manualPageCount').value = "";
 
@@ -102,22 +99,36 @@
         return;
       }
 
-      // Only count pages for PDF
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        // Hide manual input
         document.getElementById('manualPageInput').style.display = "none";
         const reader = new FileReader();
         reader.onload = function(e) {
-          const typedarray = new Uint8Array(e.target.result);
-          pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
-            pageCount = pdf.numPages;
-            document.getElementById('pageCount').textContent = pageCount;
-            updateCost();
-          }, function(err) {
+          const result = e.target.result;
+          if (result) {
+            const typedarray = new Uint8Array(result);
+            const pdfjsLib = getPdfjsLib();
+            if (pdfjsLib && pdfjsLib.getDocument) {
+              pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
+                pageCount = pdf.numPages;
+                document.getElementById('pageCount').textContent = pageCount;
+                updateCost();
+              }, function(err) {
+                pageCount = 0;
+                document.getElementById('pageCount').textContent = "Error";
+                updateCost();
+              });
+            } else {
+              console.error("PDF.js library not found on window object");
+              pageCount = 0;
+              document.getElementById('pageCount').textContent = "Error";
+              updateCost();
+            }
+          } else {
+            console.error("File data is undefined");
             pageCount = 0;
             document.getElementById('pageCount').textContent = "Error";
             updateCost();
-          });
+          }
         };
         reader.readAsArrayBuffer(file);
       } else {
@@ -151,14 +162,14 @@
 
       let perPage = 0;
       if (color === "bw") {
-        perPage = (frag === "one") ? 1 : 0.75; // 1.5 per 2 pages
+        perPage = (frag === "one") ? 1 : 0.75;
       } else {
-        perPage = (frag === "one") ? 5 : 4; // 8 per 2 pages
+        perPage = (frag === "one") ? 5 : 4;
       }
 
       let pages = pageCount;
       if (frag === "two" && pageCount > 0) {
-        pages = Math.ceil(pageCount / 2); // 2 pages per sheet
+        pages = Math.ceil(pageCount / 2);
       }
 
       let bindingCost = 0;
@@ -169,7 +180,7 @@
       if (pageCount > 0) {
         total = (perPage * pages * copies) + bindingCost;
       } else {
-        total = bindingCost; // If page count unknown, only binding cost
+        total = bindingCost;
       }
 
       document.getElementById('cost').textContent = total ? total : "--";
@@ -190,7 +201,6 @@
         return;
       }
 
-      // Save order in localStorage
       const order = {
         rollno,
         username,

@@ -5,17 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PrintMate - Upload</title>
   <link rel="stylesheet" href="order.css">
-  <!-- Load PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
   <style>
-    #manualPageInput {
-      display: none;
-      margin-bottom: 1em;
-    }
-    .cost-box {
-      margin-top: 18px;
-      margin-bottom: 18px;
-    }
+    .cost-box { margin-top: 18px; margin-bottom: 18px; }
+    .page-range { display: flex; gap: 1em; align-items: center; margin-bottom: 1em; }
+    .page-range label { margin: 0; }
+    .page-range input { width: 60px; }
   </style>
 </head>
 <body>
@@ -28,19 +22,24 @@
     </div>
     <div class="file-info">
       <span><strong>File:</strong> <span id="fileName">-</span></span><br>
-      <span><strong>Pages:</strong> <span id="pageCount">-</span></span>
     </div>
-    <!-- Manual page input for DOC/DOCX -->
-    <div id="manualPageInput">
-      <label>Enter Number of Pages (for DOC/DOCX):</label>
-      <input type="number" id="manualPageCount" min="1" placeholder="Enter pages" oninput="manualPageCountChange()">
+    <div class="page-range" id="pageRangeSection">
+      <label>From</label>
+      <input type="number" id="startPage" min="1" value="1" oninput="handleStartPageInput()">
+      <label>to</label>
+      <input type="number" id="endPage" min="1" value="1" oninput="updateCost()">
+    </div>
+    <div>
+      <span><strong>No. of Pages:</strong> <span id="pageCount">-</span></span>
     </div>
 
     <h3>Print Options</h3>
     <label>Page Fragmentation</label>
     <select id="fragmentation" onchange="updateCost()">
-      <option value="one">One side</option>
-      <option value="two">Two side</option>
+      <option value="one_one">One side one page</option>
+      <option value="two_two">Two side two pages</option>
+      <option value="one_two">One side two pages</option>
+      <option value="two_two">Two side two pages</option>
     </select>
     <label>Color</label>
     <select id="colorType" onchange="updateCost()">
@@ -65,88 +64,41 @@
     <button onclick="placeOrder()">Place Order</button>
   </div>
   <script>
-    let pageCount = 0;
     let fileName = "";
     let fileDataUrl = "";
-    let fileType = "";
-
-    function getPdfjsLib() {
-      // Try both possible globals for PDF.js
-      return window.pdfjsLib || window['pdfjsLib'] || window['pdfjs-dist/build/pdf'];
-    }
 
     function handleFileUpload(event) {
       const input = event.target;
       const file = input.files[0];
       fileName = file ? file.name : "";
-      fileType = file ? file.type : "";
       document.getElementById('fileName').textContent = fileName || "-";
       document.getElementById('fileLabel').textContent = fileName || "Click or drag PDF/DOC file here to upload";
       fileDataUrl = "";
 
-      document.getElementById('manualPageInput').style.display = "none";
-      document.getElementById('manualPageCount').value = "";
-
-      if (!file) {
-        pageCount = 0;
-        document.getElementById('pageCount').textContent = "-";
-        updateCost();
-        return;
-      }
-
-      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        document.getElementById('manualPageInput').style.display = "none";
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const result = e.target.result;
-          if (result) {
-            const typedarray = new Uint8Array(result);
-            const pdfjsLib = getPdfjsLib();
-            if (pdfjsLib && typeof pdfjsLib.getDocument === "function") {
-              pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
-                pageCount = pdf.numPages;
-                document.getElementById('pageCount').textContent = pageCount;
-                updateCost();
-              }).catch(function(err) {
-                console.error(err);
-                pageCount = 0;
-                document.getElementById('pageCount').textContent = "Error";
-                updateCost();
-              });
-            } else {
-              console.error("PDF.js library not found on window object");
-              pageCount = 0;
-              document.getElementById('pageCount').textContent = "Error";
-              updateCost();
-            }
-          } else {
-            console.error("File data is undefined");
-            pageCount = 0;
-            document.getElementById('pageCount').textContent = "Error";
-            updateCost();
-          }
+      if (file) {
+        const fileReader = new FileReader();
+        fileReader.onload = function(e) {
+          fileDataUrl = e.target.result;
         };
-        reader.readAsArrayBuffer(file);
-      } else {
-        // For DOC/DOCX, can't count pages in browser - show manual input
-        pageCount = 0;
-        document.getElementById('pageCount').textContent = "-";
-        document.getElementById('manualPageInput').style.display = "block";
-        updateCost();
+        fileReader.readAsDataURL(file);
       }
-
-      // Store file as DataURL for download/preview in admin.html
-      const fileReader = new FileReader();
-      fileReader.onload = function(e) {
-        fileDataUrl = e.target.result;
-      };
-      fileReader.readAsDataURL(file);
+      updateCost();
     }
 
-    function manualPageCountChange() {
-      const manualValue = parseInt(document.getElementById('manualPageCount').value) || 0;
-      pageCount = manualValue;
-      document.getElementById('pageCount').textContent = manualValue > 0 ? manualValue : "-";
+    function getSelectedPageCount() {
+      const start = parseInt(document.getElementById('startPage').value) || 1;
+      const end = parseInt(document.getElementById('endPage').value) || start;
+      if (start > end) return 0;
+      return end - start + 1;
+    }
+
+    function handleStartPageInput() {
+      // If endPage < startPage, set endPage = startPage
+      const start = parseInt(document.getElementById('startPage').value) || 1;
+      const endInput = document.getElementById('endPage');
+      if (parseInt(endInput.value) < start) {
+        endInput.value = start;
+      }
       updateCost();
     }
 
@@ -156,30 +108,41 @@
       const copies = parseInt(document.getElementById('copies').value) || 1;
       const binding = document.getElementById('binding').value;
 
+      // Pricing logic
       let perPage = 0;
+      let perTwoPages = 0;
       if (color === "bw") {
-        perPage = (frag === "one") ? 1 : 0.75;
+        if (frag === "one_one" || frag === "one_two") perPage = 0.6;
+        if (frag === "two_two") perTwoPages = 1.2;
       } else {
-        perPage = (frag === "one") ? 5 : 4;
+        if (frag === "one_one" || frag === "one_two") perPage = 5;
+        if (frag === "two_two") perTwoPages = 10;
       }
 
-      let pages = pageCount;
-      if (frag === "two" && pageCount > 0) {
-        pages = Math.ceil(pageCount / 2);
+      let selectedPages = getSelectedPageCount();
+      document.getElementById('pageCount').textContent = selectedPages > 0 ? selectedPages : "-";
+
+      let total = 0;
+      if (frag === "two_two") {
+        // Two side two pages: price per 2 pages
+        let sheets = Math.ceil(selectedPages / 2);
+        total = (perTwoPages * sheets * copies);
+      } else {
+        // One side one page or one side two pages: price per page
+        total = (perPage * selectedPages * copies);
       }
 
       let bindingCost = 0;
       if (binding === "spiral") bindingCost = 30;
       if (binding === "soft") bindingCost = 40;
 
-      let total = 0;
-      if (pageCount > 0) {
-        total = (perPage * pages * copies) + bindingCost;
+      if (selectedPages > 0) {
+        total += bindingCost;
       } else {
         total = bindingCost;
       }
 
-      document.getElementById('cost').textContent = total ? total : "--";
+      document.getElementById('cost').textContent = total ? total.toFixed(2) : "--";
     }
 
     function placeOrder() {
@@ -192,8 +155,10 @@
       const cost = document.getElementById('cost').textContent;
       const file = document.getElementById('fileInput').files[0];
 
-      if (!file || !username || !rollno || cost === "--" || (pageCount === 0 && binding === "none")) {
-        alert("Please fill all fields, upload a file, and enter page count if needed.");
+      let selectedPages = getSelectedPageCount();
+
+      if (!file || !username || !rollno || cost === "--" || selectedPages === 0) {
+        alert("Please fill all fields, upload a file, and enter a valid page range.");
         return;
       }
 
@@ -202,12 +167,14 @@
         username,
         fileName,
         fileDataUrl,
-        pageCount: pageCount > 0 ? pageCount : "-",
+        pageCount: selectedPages,
         color: color === "bw" ? "B/W" : "Color",
-        fragment: frag === "one" ? "One Side" : "Two Side",
+        fragment: getFragmentLabel(frag),
         binding: binding.charAt(0).toUpperCase() + binding.slice(1),
         copies,
-        cost
+        cost,
+        startPage: document.getElementById('startPage').value,
+        endPage: document.getElementById('endPage').value
       };
 
       let orders = JSON.parse(localStorage.getItem("orders") || "[]");
@@ -216,6 +183,22 @@
 
       window.location.href = "admin.html";
     }
+
+    function getFragmentLabel(frag) {
+      switch(frag) {
+        case "one_one": return "One side one page";
+        case "two_two": return "Two side two pages";
+        case "one_two": return "One side two pages";
+        default: return frag;
+      }
+    }
+
+    // Update cost on page load and when fields change
+    window.onload = function() {
+      updateCost();
+      document.getElementById('startPage').addEventListener('input', handleStartPageInput);
+      document.getElementById('endPage').addEventListener('input', updateCost);
+    };
   </script>
 </body>
 </html>

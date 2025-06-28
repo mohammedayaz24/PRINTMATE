@@ -58,9 +58,9 @@
     <input type="number" id="copies" min="1" value="1" placeholder="Enter number of copies" oninput="updateCost()">
     <label>Binding</label>
     <select id="binding" onchange="updateCost()">
-      <option value="spiral">Spiral (+₹30)</option>
-      <option value="soft">Soft (+₹40)</option>
       <option value="none">None (+₹0)</option>
+      <option value="soft">Soft (+₹40)</option>
+      <option value="spiral">Spiral (+₹30)</option>
     </select>
     <div class="cost-box">
       <strong>Estimated Cost: ₹<span id="cost">--</span></strong>

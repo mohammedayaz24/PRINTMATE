@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrintMate - Upload</title>
+  <link rel="stylesheet" href="order.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+</head>
+<body>
+  <div class="brand-logo">🖨️ PRINTMATE</div>
+  <div class="container">
+    <h2>Upload Your File</h2>
+    <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+      <span class="upload-label" id="fileLabel">Click or drag PDF/DOC file here to upload</span>
+      <input type="file" id="fileInput" accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onchange="handleFileUpload(event)">
+    </div>
+    <div class="file-info">
+      <span><strong>File:</strong> <span id="fileName">-</span></span><br>
+      <span><strong>Pages:</strong> <span id="pageCount">-</span></span>
+    </div>
+
+    <h3>Print Options</h3>
+
+    <label>Page Fragmentation</label>
+    <select id="fragmentation" onchange="updateCost()">
+      <option value="one">One side</option>
+      <option value="two">Two side</option>
+    </select>
+
+    <label>Color</label>
+    <select id="colorType" onchange="updateCost()">
+      <option value="bw">Black & White</option>
+      <option value="color">Color</option>
+    </select>
+
+    <label>No. of Copies</label>
+    <input type="number" id="copies" min="1" value="1" placeholder="Enter number of copies" oninput="updateCost()">
+
+    <label>Binding</label>
+    <select id="binding" onchange="updateCost()">
+      <option value="spiral">Spiral (+₹30)</option>
+      <option value="soft">Soft (+₹40)</option>
+      <option value="none">None (+₹0)</option>
+    </select>
+
+    <div class="cost-box">
+      <strong>Estimated Cost: ₹<span id="cost">--</span></strong>
+    </div>
+
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter your name" required>
+
+    <label>Roll Number</label>
+    <input type="text" id="rollno" placeholder="Enter your roll number" required>
+
+    <button onclick="placeOrder()">Place Order</button>
+  </div>
+
+  <script>
+    let pageCount = 0;
+    let fileName = "";
+    let fileDataUrl = "";
+
+    function handleFileUpload(event) {
+      const input = event.target;
+      const file = input.files[0];
+      fileName = file ? file.name : "";
+      document.getElementById('fileName').textContent = fileName || "-";
+      document.getElementById('fileLabel').textContent = fileName || "Click or drag PDF/DOC file here to upload";
+      fileDataUrl = "";
+
+      if (!file) {
+        pageCount = 0;
+        document.getElementById('pageCount').textContent = "-";
+        updateCost();
+        return;
+      }
+
+      // Only count pages for PDF
+      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const typedarray = new Uint8Array(e.target.result);
+          pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
+            pageCount = pdf.numPages;
+            document.getElementById('pageCount').textContent = pageCount;
+            updateCost();
+          }, function() {
+            pageCount = 0;
+            document.getElementById('pageCount').textContent = "Error";
+            updateCost();
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        // For DOC/DOCX, can't count pages in browser
+        pageCount = 0;
+        document.getElementById('pageCount').textContent = "-";
+        updateCost();
+      }
+
+      // Store file as DataURL for download/preview in admin.html
+      const fileReader = new FileReader();
+      fileReader.onload = function(e) {
+        fileDataUrl = e.target.result;
+      };
+      fileReader.readAsDataURL(file);
+    }
+
+    function updateCost() {
+      const color = document.getElementById('colorType').value;
+      const frag = document.getElementById('fragmentation').value;
+      const copies = parseInt(document.getElementById('copies').value) || 1;
+      const binding = document.getElementById('binding').value;
+
+      let perPage = 0;
+      if (color === "bw") {
+        perPage = (frag === "one") ? 1 : 0.75; // 1.5 per 2 pages
+      } else {
+        perPage = (frag === "one") ? 5 : 4; // 8 per 2 pages
+      }
+
+      let pages = pageCount;
+      if (frag === "two" && pageCount > 0) {
+        pages = Math.ceil(pageCount / 2); // 2 pages per sheet
+      }
+
+      let bindingCost = 0;
+      if (binding === "spiral") bindingCost = 30;
+      if (binding === "soft") bindingCost = 40;
+
+      let total = 0;
+      if (pageCount > 0) {
+        total = (perPage * pages * copies) + bindingCost;
+      } else {
+        total = bindingCost; // If page count unknown, only binding cost
+      }
+
+      document.getElementById('cost').textContent = total ? total : "--";
+    }
+
+    function placeOrder() {
+      const username = document.getElementById('username').value.trim();
+      const rollno = document.getElementById('rollno').value.trim();
+      const color = document.getElementById('colorType').value;
+      const frag = document.getElementById('fragmentation').value;
+      const copies = parseInt(document.getElementById('copies').value) || 1;
+      const binding = document.getElementById('binding').value;
+      const cost = document.getElementById('cost').textContent;
+      const file = document.getElementById('fileInput').files[0];
+
+      if (!file || !username || !rollno || cost === "--") {
+        alert("Please fill all fields and upload a file.");
+        return;
+      }
+
+      // Save order in localStorage
+      const order = {
+        rollno,
+        username,
+        fileName,
+        fileDataUrl,
+        pageCount: pageCount > 0 ? pageCount : "-",
+        color: color === "bw" ? "B/W" : "Color",
+        fragment: frag === "one" ? "One Side" : "Two Side",
+        binding: binding.charAt(0).toUpperCase() + binding.slice(1),
+        copies,
+        cost
+      };
+
+      let orders = JSON.parse(localStorage.getItem("orders") || "[]");
+      orders.push(order);
+      localStorage.setItem("orders", JSON.stringify(orders));
+
+      window.location.href = "admin.html";
+    }
+  </script>

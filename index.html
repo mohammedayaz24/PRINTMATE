@@ -22,6 +22,121 @@
             0% { background-position: 0% 50%;}
             100% { background-position: 100% 50%;}
         }
+        .scene {
+            width: 300px;
+            height: 300px;
+            perspective: 800px;
+            margin-bottom: 1.5rem;
+        }
+        .cube {
+            width: 200px;
+            height: 150px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(-15deg) rotateY(0deg);
+            animation: spin 8s infinite linear;
+        }
+        @keyframes spin {
+            0%   { transform: rotateX(0deg) rotateY(0deg);}
+            50%  { transform: rotateX(20deg) rotateY(180deg);}
+            100% { transform: rotateX(0deg) rotateY(360deg);}
+        }
+        .face {
+            position: absolute;
+            background: #cfd8dc;
+            border: 1px solid #90a4ae;
+        }
+        .front, .back, .left, .right, .top, .bottom {
+            width: 200px;
+            height: 150px;
+        }
+        .front {
+            transform: translateZ(75px);
+            border-radius: 15px;
+        }
+        .back {
+            transform: rotateY(180deg) translateZ(75px);
+        }
+        .left {
+            transform: rotateY(-90deg) translateZ(100px);
+        }
+        .right {
+            transform: rotateY(90deg) translateZ(100px);
+        }
+        .top {
+            transform: rotateX(90deg) translateZ(75px);
+            background: #b0bec5;
+        }
+        .bottom {
+            transform: rotateX(-90deg) translateZ(75px);
+            background: #b0bec5;
+        }
+        /* Face features (only on front) */
+        .front .paper {
+            width: 100px;
+            height: 60px;
+            background: white;
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .front .eye {
+            width: 20px;
+            height: 20px;
+            background: black;
+            border-radius: 50%;
+            position: absolute;
+            top: 40px;
+        }
+        .eye.left  { left: 40px; }
+        .eye.right { right: 40px; }
+        .front .mouth {
+            width: 40px;
+            height: 20px;
+            background: #ef5350;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 0 0 10px 10px;
+        }
+        .front .face-label {
+            position: absolute;
+            bottom: 8px;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            color: #37474f;
+            font-size: 14px;
+        }
+        .front .top-slot {
+            position: absolute;
+            width: 80px;
+            height: 10px;
+            background: #455a64;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 5px;
+        }
+        .front .panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        .panel .btn {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: red;
+        }
+        .panel .btn:nth-child(2) { background: yellow; }
+        .panel .btn:nth-child(3) { background: green; }
         .title {
             font-size: 3.5rem;
             font-weight: bold;
@@ -67,25 +182,37 @@
                 box-shadow: 0 4px 24px 0 rgba(44, 62, 80, 0.18), 0 0 32px 8px #4b6cb788;
             }
         }
-        .printer-emoji {
-            font-size: 2.5rem;
-            display: block;
-            margin-bottom: 1.2rem;
-            animation: popIn 1.2s cubic-bezier(.68,-0.55,.27,1.55), floaty 3s ease-in-out infinite alternate;
-        }
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.5);}
-            80% { opacity: 1; transform: scale(1.15);}
-            100% { opacity: 1; transform: scale(1);}
-        }
-        @keyframes floaty {
-            0% { transform: translateY(0) scale(1);}
-            100% { transform: translateY(-18px) scale(1.05);}
+        @media (max-width: 600px) {
+            .scene { width: 200px; height: 200px; }
+            .cube, .front, .back, .left, .right, .top, .bottom { width: 120px; height: 90px; }
         }
     </style>
 </head>
 <body>
-    <span class="printer-emoji">🖨️</span>
+    <div class="scene">
+        <div class="cube">
+            <!-- Front -->
+            <div class="face front">
+                <div class="top-slot"></div>
+                <div class="paper"></div>
+                <div class="eye left"></div>
+                <div class="eye right"></div>
+                <div class="mouth"></div>
+                <div class="panel">
+                    <div class="btn"></div>
+                    <div class="btn"></div>
+                    <div class="btn"></div>
+                </div>
+                <div class="face-label">PRINTMATE</div>
+            </div>
+            <!-- Other sides -->
+            <div class="face back"></div>
+            <div class="face left"></div>
+            <div class="face right"></div>
+            <div class="face top"></div>
+            <div class="face bottom"></div>
+        </div>
+    </div>
     <div class="title">PRINTMATE</div>
     <button class="get-started-btn" onclick="window.location.href='login.html'">Get Started</button>
 </body>

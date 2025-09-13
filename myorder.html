@@ -88,32 +88,68 @@
     </div>
     <div class="container">
         <h1>My Orders</h1>
+        <div style="margin-bottom: 20px;">
+            <label for="rollnoInput">Enter your Roll Number:</label>
+            <input type="text" id="rollnoInput" placeholder="Roll Number" required>
+            <button onclick="loadOrders()">Load Orders</button>
+        </div>
         <div id="orders"></div>
     </div>
     <script>
-        const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-        const ordersDiv = document.getElementById('orders');
-        if (orders.length === 0) {
-            ordersDiv.innerHTML = '<div class="empty">No orders placed yet.</div>';
-        } else {
-            orders.forEach((order, idx) => {
-                const div = document.createElement('div');
-                div.className = 'order';
-                div.innerHTML = `
-                    <strong>Order #${idx + 1}</strong><br>
-                    <b>Name:</b> ${order.username}<br>
-                    <b>Roll No:</b> ${order.rollno}<br>
-                    <b>File:</b> ${order.fileName}<br>
-                    <b>Pages:</b> ${order.pageCount} (from ${order.startPage} to ${order.endPage})<br>
-                    <b>Color:</b> ${order.color}<br>
-                    <b>Fragmentation:</b> ${order.fragment}<br>
-                    <b>Binding:</b> ${order.binding}<br>
-                    <b>Copies:</b> ${order.copies}<br>
-                    <b>Cost:</b> ₹${order.cost}<br>
-                    <b>Date:</b> ${order.date}
-                `;
-                ordersDiv.appendChild(div);
-            });
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        if (!token || role !== 'student') {
+            window.location.href = 'login.html';
+        }
+
+        async function loadOrders() {
+            const rollno = document.getElementById('rollnoInput').value.trim();
+            if (!rollno) {
+                alert("Please enter your roll number.");
+                return;
+            }
+            const ordersDiv = document.getElementById('orders');
+            ordersDiv.innerHTML = '<div class="empty">Loading...</div>';
+            try {
+                const response = await fetch(`http://localhost:8000/api/my-orders?rollno=${encodeURIComponent(rollno)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const orders = await response.json();
+                    if (orders.length === 0) {
+                        ordersDiv.innerHTML = '<div class="empty">No orders found.</div>';
+                    } else {
+                        ordersDiv.innerHTML = '';
+                        orders.forEach((order, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'order';
+                            div.innerHTML = `
+                                <strong>Order #${idx + 1}</strong><br>
+                                <b>Name:</b> ${order.username}<br>
+                                <b>Roll No:</b> ${order.rollno}<br>
+                                <b>File:</b> ${order.fileName}<br>
+                                <b>Pages:</b> ${order.pageCount} (from ${order.startPage} to ${order.endPage})<br>
+                                <b>Color:</b> ${order.color}<br>
+                                <b>Fragmentation:</b> ${order.fragment}<br>
+                                <b>Binding:</b> ${order.binding}<br>
+                                <b>Copies:</b> ${order.copies}<br>
+                                <b>Cost:</b> ₹${order.cost}<br>
+                                <b>Status:</b> ${order.status}<br>
+                                <b>Date:</b> ${order.date}
+                            `;
+                            ordersDiv.appendChild(div);
+                        });
+                    }
+                } else {
+                    ordersDiv.innerHTML = '<div class="empty">Failed to load orders.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                ordersDiv.innerHTML = '<div class="empty">Error loading orders.</div>';
+            }
         }
     </script>
 </body>

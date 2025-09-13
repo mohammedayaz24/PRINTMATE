@@ -75,6 +75,13 @@
     </div>
   </div>
   <script>
+    // Check authentication
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (!token || role !== 'student') {
+        window.location.href = 'login.html';
+    }
+
     let fileName = "";
     let fileDataUrl = "";
 
@@ -156,7 +163,7 @@
       document.getElementById('cost').textContent = total ? total.toFixed(2) : "--";
     }
 
-    function placeOrder() {
+    async function placeOrder() {
       const username = document.getElementById('username').value.trim();
       const rollno = document.getElementById('rollno').value.trim();
       const color = document.getElementById('colorType').value;
@@ -174,6 +181,7 @@
       }
 
       const order = {
+        id: Date.now().toString(),
         rollno,
         username,
         fileName,
@@ -186,14 +194,28 @@
         cost,
         startPage: document.getElementById('startPage').value,
         endPage: document.getElementById('endPage').value,
+        status: "Pending",
         date: new Date().toLocaleString()
       };
 
-      let orders = JSON.parse(localStorage.getItem("orders") || "[]");
-      orders.push(order);
-      localStorage.setItem("orders", JSON.stringify(orders));
-
-      window.location.href = "myorder.html";
+      try {
+        const response = await fetch('http://localhost:8000/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(order)
+        });
+        if (response.ok) {
+          window.location.href = "myorder.html";
+        } else {
+          alert("Failed to place order. Please try again.");
+        }
+      } catch (error) {
+        console.error('Error placing order:', error);
+        alert("Error placing order. Please try again.");
+      }
     }
 
     function getFragmentLabel(frag) {

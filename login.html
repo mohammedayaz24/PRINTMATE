@@ -12,20 +12,21 @@
         <div class="login-panels" id="loginPanels">
             <div class="login-box">
                 <h2>User Login</h2>
-                <form>
-                    <input type="text" placeholder="Username" required>
-                    <input type="password" placeholder="Password" required>
-                    <button onclick="window.location.href='student.html'">Login</button>
-
+                <form id="userLoginForm">
+                    <input type="text" id="userUsername" placeholder="Username" required>
+                    <input type="password" id="userPassword" placeholder="Password" required>
+                    <button type="submit">Login</button>
                 </form>
+                <div id="userLoginError" style="color: red; margin-top: 10px;"></div>
             </div>
             <div class="login-box">
                 <h2>Admin Login</h2>
-                <form>
-                    <input type="text" placeholder="Username" required>
-                    <input type="password" placeholder="Password" required>
-                    <button onclick="window.location.href='admin.html'">Login</button>
+                <form id="adminLoginForm">
+                    <input type="text" id="adminUsername" placeholder="Username" required>
+                    <input type="password" id="adminPassword" placeholder="Password" required>
+                    <button type="submit">Login</button>
                 </form>
+                <div id="adminLoginError" style="color: red; margin-top: 10px;"></div>
             </div>
         </div>
         <div class="signup-link" id="signupLink">
@@ -34,21 +35,20 @@
         </div>
         <div class="signup-box" id="signupBox" style="display:none;">
             <h2>Sign Up</h2>
-            <form>
-                <input type="text" placeholder="Username" required>
-                <input type="password" placeholder="Password" required>
-                <input type="password" placeholder="Confirm Password" required>
-                <input type="text" placeholder="Register Number" required>
-                <input type="text" placeholder="Roll Number" required>
-                <input type="email" placeholder="Email ID" required>
-                <select required>
-                    <option value="" disabled selected>Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
+            <form id="signupForm">
+                <input type="text" id="signupUsername" placeholder="Username" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <input type="password" id="signupConfirmPassword" placeholder="Confirm Password" required>
+                <input type="text" id="signupRollno" placeholder="Roll Number" required>
+                <input type="email" id="signupEmail" placeholder="Email ID" required>
+                <select id="signupRole" required>
+                    <option value="" disabled selected>Role</option>
+                    <option value="student">Student</option>
+                    <option value="admin">Admin</option>
                 </select>
-                <input type="tel" placeholder="Phone Number" required>
+                <input type="tel" id="signupPhone" placeholder="Phone Number" required>
                 <button type="submit">Sign Up</button>
+                <div id="signupError" style="color: red; margin-top: 10px;"></div>
                 <div class="back-login">
                     <a href="#" id="backToLogin">Back to Login</a>
                 </div>
@@ -68,6 +68,109 @@
         document.getElementById('signupLink').style.display = 'block';
         document.getElementById('signupBox').style.display = 'none';
     };
+
+    // Signup form
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const username = document.getElementById('signupUsername').value;
+        const password = document.getElementById('signupPassword').value;
+        const confirmPassword = document.getElementById('signupConfirmPassword').value;
+        const rollno = document.getElementById('signupRollno').value;
+        const email = document.getElementById('signupEmail').value;
+        const role = document.getElementById('signupRole').value;
+        const phone = document.getElementById('signupPhone').value;
+        const errorDiv = document.getElementById('signupError');
+
+        if (password !== confirmPassword) {
+            errorDiv.textContent = 'Passwords do not match';
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8000/api/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password, rollno, email, phone, role })
+            });
+            if (response.ok) {
+                alert('Signup successful! Please login.');
+                document.getElementById('backToLogin').click();
+            } else {
+                const error = await response.json();
+                errorDiv.textContent = error.detail || 'Signup failed';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+        }
+    });
+
+    // User login form
+    document.getElementById('userLoginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const username = document.getElementById('userUsername').value;
+        const password = document.getElementById('userPassword').value;
+        const errorDiv = document.getElementById('userLoginError');
+
+        try {
+            const response = await fetch('http://localhost:8000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.role === 'student') {
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('username', username);
+                    window.location.href = 'order.html';
+                } else {
+                    errorDiv.textContent = 'Invalid role for user login';
+                }
+            } else {
+                errorDiv.textContent = 'Invalid username or password';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+        }
+    });
+
+    // Admin login form
+    document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const username = document.getElementById('adminUsername').value;
+        const password = document.getElementById('adminPassword').value;
+        const errorDiv = document.getElementById('adminLoginError');
+
+        try {
+            const response = await fetch('http://localhost:8000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.role === 'admin') {
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('username', username);
+                    window.location.href = 'admin.html';
+                } else {
+                    errorDiv.textContent = 'Invalid role for admin login';
+                }
+            } else {
+                errorDiv.textContent = 'Invalid username or password';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+        }
+    });
     </script>
 </body>
 </html>

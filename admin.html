@@ -132,19 +132,47 @@
         <div id="completedOrders" class="orders-section"></div>
     </div>
     <script>
-        // Get orders from localStorage
-        let orders = JSON.parse(localStorage.getItem('orders') || '[]');
-        let completedOrders = JSON.parse(localStorage.getItem('completedOrders') || '[]');
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        if (!token || role !== 'admin') {
+            window.location.href = 'login.html';
+        }
+
+        let allOrders = [];
 
         const ordersDiv = document.getElementById('orders');
         const completedDiv = document.getElementById('completedOrders');
 
+        async function loadOrders() {
+            try {
+                const response = await fetch('http://localhost:8000/api/orders', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    allOrders = await response.json();
+                    renderOrders();
+                    renderCompletedOrders();
+                } else {
+                    ordersDiv.innerHTML = '<div class="empty">Failed to load orders.</div>';
+                    completedDiv.innerHTML = '<div class="empty">Failed to load orders.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                ordersDiv.innerHTML = '<div class="empty">Error loading orders.</div>';
+                completedDiv.innerHTML = '<div class="empty">Error loading orders.</div>';
+            }
+        }
+
         function renderOrders() {
+            const pendingOrders = allOrders.filter(order => order.status === 'Pending');
             ordersDiv.innerHTML = '';
-            if (orders.length === 0) {
+            if (pendingOrders.length === 0) {
                 ordersDiv.innerHTML = '<div class="empty">No pending orders.</div>';
             } else {
-                orders.forEach((order, idx) => {
+                pendingOrders.forEach((order, idx) => {
                     const div = document.createElement('div');
                     div.className = 'order';
                     div.innerHTML = `
@@ -159,13 +187,14 @@
                             <b>Binding:</b> ${order.binding}<br>
                             <b>Copies:</b> ${order.copies}<br>
                             <b>Cost:</b> ₹${order.cost}<br>
+                            <b>Status:</b> ${order.status}<br>
                             <b>Date:</b> ${order.date}
                         </div>
                         <div class="order-actions">
                             <a class="preview-btn" href="${order.fileDataUrl}" target="_blank">Preview</a>
                             <a class="download-btn" href="${order.fileDataUrl}" download="${order.fileName}">Download</a>
-                            <button class="print-btn" onclick="printFile('${encodeURIComponent(order.fileDataUrl)}')">Print</button>
-                            <button class="completed-btn" onclick="markCompleted(${idx})">Completed</button>
+                            <button class="print-btn" onclick="updateStatus('${order.id}', 'Printing')">Print</button>
+                            <button class="completed-btn" onclick="updateStatus('${order.id}', 'Completed')">Completed</button>
                         </div>
                     `;
                     ordersDiv.appendChild(div);
@@ -174,6 +203,7 @@
         }
 
         function renderCompletedOrders() {
+            const completedOrders = allOrders.filter(order => order.status === 'Completed');
             completedDiv.innerHTML = '';
             if (completedOrders.length === 0) {
                 completedDiv.innerHTML = '<div class="empty">No completed orders.</div>';
@@ -193,12 +223,13 @@
                             <b>Binding:</b> ${order.binding}<br>
                             <b>Copies:</b> ${order.copies}<br>
                             <b>Cost:</b> ₹${order.cost}<br>
+                            <b>Status:</b> ${order.status}<br>
                             <b>Date:</b> ${order.date}
                         </div>
                         <div class="order-actions">
                             <a class="preview-btn" href="${order.fileDataUrl}" target="_blank">Preview</a>
                             <a class="download-btn" href="${order.fileDataUrl}" download="${order.fileName}">Download</a>
-                            <button class="finished-btn" onclick="notifyUser('${order.username}', '${order.rollno}', ${idx})">Finished</button>
+                            <button class="finished-btn" onclick="notifyUser('${order.username}', '${order.rollno}')">Finished</button>
                         </div>
                     `;
                     completedDiv.appendChild(div);
@@ -206,13 +237,25 @@
             }
         }
 
-        function markCompleted(idx) {
-            completedOrders.push(orders[idx]);
-            orders.splice(idx, 1);
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('completedOrders', JSON.stringify(completedOrders));
-            renderOrders();
-            renderCompletedOrders();
+        async function updateStatus(id, status) {
+            try {
+                const response = await fetch(`http://localhost:8000/api/orders/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status })
+                });
+                if (response.ok) {
+                    await loadOrders(); // Reload orders
+                } else {
+                    alert("Failed to update status.");
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert("Error updating status.");
+            }
         }
 
         // Print file in a new window
@@ -225,16 +268,11 @@
         }
 
         // Simulate notification to user
-        function notifyUser(username, rollno, idx) {
+        function notifyUser(username, rollno) {
             alert(`Notification sent to ${username} (Roll No: ${rollno}) that their order is finished!`);
-            // Optionally, remove from completedOrders after notification
-            completedOrders.splice(idx, 1);
-            localStorage.setItem('completedOrders', JSON.stringify(completedOrders));
-            renderCompletedOrders();
         }
 
-        renderOrders();
-        renderCompletedOrders();
+        loadOrders();
     </script>
 </body>
 </html>

@@ -13,6 +13,8 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: hidden;
         }
         .header {
             width: 100%;
@@ -44,15 +46,19 @@
             display: flex;
             gap: 2em;
             align-items: center;
+            height: 44px;
         }
         .nav-link {
             color: #2d3a60;
             text-decoration: none;
             font-size: 1.1em;
             font-weight: 500;
-            padding: 0.3em 0.8em;
+            padding: 0.5em 1em;
             border-radius: 6px;
             transition: background 0.15s, color 0.15s;
+            display: flex;
+            align-items: center;
+            height: 100%;
         }
         .nav-link:hover, .nav-link.active {
             background: #e6ecfa;
@@ -278,19 +284,55 @@
         <p>Your personalized dashboard will be available soon.</p>
         <div class="services-section">
             <div class="services-slider">
-                <div class="service-box">Color Printing</div>
-                <div class="service-box">Spiral Binding</div>
-                <div class="service-box">Soft Binding</div>
-                <div class="service-box">Lamination</div>
-                <div class="service-box">Record Work</div>
-                <div class="service-box">Photocopy</div>
+                <div class="service-box">
+                    <img src="images/color-printing.png" alt="Color Printing" class="service-image" />
+                    Color Printing
+                </div>
+                <div class="service-box">
+                    <img src="images/spiral-binding.png" alt="Spiral Binding" class="service-image" />
+                    Spiral Binding
+                </div>
+                <div class="service-box">
+                    <img src="images/soft-binding.png" alt="Soft Binding" class="service-image" />
+                    Soft Binding
+                </div>
+                <div class="service-box">
+                    <img src="images/lamination.png" alt="Lamination" class="service-image" />
+                    Lamination
+                </div>
+                <div class="service-box">
+                    <img src="images/record-work.png" alt="Record Work" class="service-image" />
+                    Record Work
+                </div>
+                <div class="service-box">
+                    <img src="images/photocopy.png" alt="Photocopy" class="service-image" />
+                    Photocopy
+                </div>
                 <!-- Repeat for smooth animation -->
-                <div class="service-box">Color Printing</div>
-                <div class="service-box">Spiral Binding</div>
-                <div class="service-box">Soft Binding</div>
-                <div class="service-box">Lamination</div>
-                <div class="service-box">Record Work</div>
-                <div class="service-box">Photocopy</div>
+                <div class="service-box">
+                    <img src="images/color-printing.png" alt="Color Printing" class="service-image" />
+                    Color Printing
+                </div>
+                <div class="service-box">
+                    <img src="images/spiral-binding.png" alt="Spiral Binding" class="service-image" />
+                    Spiral Binding
+                </div>
+                <div class="service-box">
+                    <img src="images/soft-binding.png" alt="Soft Binding" class="service-image" />
+                    Soft Binding
+                </div>
+                <div class="service-box">
+                    <img src="images/lamination.png" alt="Lamination" class="service-image" />
+                    Lamination
+                </div>
+                <div class="service-box">
+                    <img src="images/record-work.png" alt="Record Work" class="service-image" />
+                    Record Work
+                </div>
+                <div class="service-box">
+                    <img src="images/photocopy.png" alt="Photocopy" class="service-image" />
+                    Photocopy
+                </div>
             </div>
         </div>
         <button class="order-btn" onclick="window.location.href='order.html'">Order Now</button>

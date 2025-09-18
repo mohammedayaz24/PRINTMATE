@@ -204,12 +204,19 @@ body {
         width: 100vw;
     }
     .login-box, .signup-box {
-        min-width: 98vw;
-        max-width: 99vw;
+        min-width: 80vw;
+        max-width: 90vw;
         padding: 1.2em 0.5em 1em 0.5em;
     }
+    .login-box input, .signup-box input, .signup-box select {
+    width: 80%;
+    padding: 0.9em;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    }
     .brand-logo {
-        font-size: 1rem;
+        font-size: 1.2 rem;
         left: 4px;
         top: 4px;
         padding: 0.1em 0.3em;
@@ -220,9 +227,11 @@ body {
     .login-box button, .signup-box button {
         padding: 0.8em;
         font-size: 1em;
+        width: 95%;
     }
     .login-box h2, .signup-box h2 {
         font-size: 1.2em;
+        margin-left: 10px;
     }
 }
 
@@ -235,10 +244,21 @@ body {
         margin-right: 10px;
     }
     .brand-logo {
-        font-size: 0.9rem;
+        font-size: 1.2 rem;
         left: 2px;
         top: 2px;
         padding: 0.1em 0.2em;
+    }
+    .login-box input, .signup-box input, .signup-box select {
+    width: 80%;
+    padding: 0.9em;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    }
+    .login-box button, .signup-box button {
+        padding: 0.5em;
+        width: 90%;
     }
 }
 

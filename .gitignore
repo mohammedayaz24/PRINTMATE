@@ -1,10 +1,4 @@
-# Python
+backend/.env
+backend/venv/
 __pycache__/
 *.pyc
-
-# Virtual environments
-venv/
-backend/venv/
-
-# Environment variables
-.env

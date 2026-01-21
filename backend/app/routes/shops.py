@@ -48,3 +48,78 @@ def get_shop_orders(shop_id: str):
         orders = [dict(row._mapping) for row in result]
 
     return orders
+
+from sqlalchemy import text
+
+@router.get("/{shop_id}/queue")
+def get_shop_queue(shop_id: str):
+    """
+    Returns active print queue for a shop
+    (PENDING + IN_PROGRESS orders only)
+    """
+
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            status,
+            total_pages,
+            estimated_ready_time,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+          AND status IN ('PENDING', 'IN_PROGRESS')
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        rows = result.fetchall()
+
+    queue = []
+    for index, row in enumerate(rows, start=1):
+        queue.append({
+            "queue_position": index,
+            "order_id": row.id,
+            "student_id": row.student_id,
+            "status": row.status,
+            "total_pages": row.total_pages,
+            "estimated_ready_time": row.estimated_ready_time,
+            "created_at": row.created_at
+        })
+
+    return {
+        "shop_id": shop_id,
+        "queue_length": len(queue),
+        "queue": queue
+    }
+
+from fastapi import APIRouter
+from sqlalchemy import text
+from app.database import engine
+
+router = APIRouter(prefix="/shops", tags=["Shops"])
+
+
+@router.get("/{shop_id}/orders")
+def get_shop_orders(shop_id: str):
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            total_pages,
+            estimated_cost,
+            status,
+            payment_status,
+            estimated_ready_time,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        orders = [dict(row._mapping) for row in result]
+
+    return orders

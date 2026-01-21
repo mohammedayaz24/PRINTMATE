@@ -146,3 +146,138 @@ def update_order_status(order_id: str, payload: dict):
         "order_id": row.id,
         "status": row.status
     }
+
+@router.get("/{order_id}/track")
+def track_order(order_id: str):
+    """
+    Track a single order with live queue position
+    """
+
+    query = text("""
+        SELECT
+            o.id,
+            o.student_id,
+            o.shop_id,
+            o.status,
+            o.total_pages,
+            o.estimated_ready_time,
+            o.created_at,
+            (
+                SELECT COUNT(*)
+                FROM orders q
+                WHERE q.shop_id = o.shop_id
+                  AND q.status IN ('PENDING', 'IN_PROGRESS')
+                  AND q.created_at <= o.created_at
+            ) AS queue_position
+        FROM orders o
+        WHERE o.id = :order_id
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"order_id": order_id})
+        row = result.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    return {
+        "order_id": row.id,
+        "student_id": row.student_id,
+        "shop_id": row.shop_id,
+        "status": row.status,
+        "queue_position": row.queue_position,
+        "total_pages": row.total_pages,
+        "estimated_ready_time": row.estimated_ready_time,
+        "created_at": row.created_at
+    }
+
+@router.patch("/{order_id}/start")
+def start_printing(order_id: str):
+    query = text("""
+        UPDATE orders
+        SET status = 'IN_PROGRESS'
+        WHERE id = :order_id AND status = 'PENDING'
+        RETURNING id, status
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"order_id": order_id})
+        row = result.fetchone()
+        connection.commit()
+
+    if not row:
+        return {"detail": "Order not found or already started"}
+
+    return {
+        "order_id": row.id,
+        "status": row.status
+    }
+
+@router.get("/admin/in-progress")
+def get_in_progress_orders():
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            shop_id,
+            total_pages,
+            estimated_cost,
+            status,
+            payment_status,
+            created_at
+        FROM orders
+        WHERE status = 'IN_PROGRESS'
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query)
+        orders = [dict(row._mapping) for row in result]
+
+    return orders
+
+@router.patch("/{order_id}/complete")
+def complete_order(order_id: str):
+    query = text("""
+        UPDATE orders
+        SET status = 'COMPLETED'
+        WHERE id = :order_id
+          AND status = 'IN_PROGRESS'
+        RETURNING id, status
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"order_id": order_id})
+        row = result.fetchone()
+        connection.commit()
+
+    if not row:
+        return {"detail": "Order not in progress or not found"}
+
+    return {
+        "order_id": row.id,
+        "status": row.status
+    }
+
+@router.patch("/{order_id}/deliver")
+def deliver_order(order_id: str):
+    query = text("""
+        UPDATE orders
+        SET status = 'DELIVERED'
+        WHERE id = :order_id
+          AND status = 'COMPLETED'
+        RETURNING id, status
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"order_id": order_id})
+        row = result.fetchone()
+        connection.commit()
+
+    if not row:
+        return {"detail": "Order not completed or not found"}
+
+    return {
+        "order_id": row.id,
+        "status": row.status
+    }

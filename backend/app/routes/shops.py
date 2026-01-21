@@ -1,38 +1,50 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from app.database import engine
 
 router = APIRouter(prefix="/shops", tags=["Shops"])
 
 
-@router.get("/")
-def get_shops():
+@router.patch("/{shop_id}/toggle")
+def toggle_shop_orders(shop_id: str):
     query = text("""
-        SELECT
-            s.id,
-            s.name,
-            s.is_active,
-            s.accepting_orders,
-            s.avg_print_time_per_page,
-            COALESCE(SUM(o.pages_count), 0) AS total_pages_in_queue
-        FROM shops s
-        LEFT JOIN orders o
-            ON s.id = o.shop_id
-            AND o.status = 'pending'
-        WHERE s.is_active = true
-        GROUP BY s.id
+        UPDATE shops
+        SET accepting_orders = NOT accepting_orders
+        WHERE id = :shop_id
+        RETURNING id, accepting_orders
     """)
 
     with engine.connect() as connection:
-        result = connection.execute(query)
-        shops = []
+        result = connection.execute(query, {"shop_id": shop_id})
+        row = result.fetchone()
+        connection.commit()
 
-        for row in result:
-            data = dict(row._mapping)
-            data["estimated_time_minutes"] = (
-                data["total_pages_in_queue"]
-                * data["avg_print_time_per_page"]
-            )
-            shops.append(data)
+    if not row:
+        raise HTTPException(status_code=404, detail="Shop not found")
 
-    return shops
+    return {
+        "shop_id": row.id,
+        "accepting_orders": row.accepting_orders
+    }
+
+@router.get("/{shop_id}/orders")
+def get_shop_orders(shop_id: str):
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            status,
+            payment_status,
+            total_pages,
+            estimated_ready_time,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        orders = [dict(row._mapping) for row in result]
+
+    return orders

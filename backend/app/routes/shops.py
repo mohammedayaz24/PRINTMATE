@@ -123,3 +123,75 @@ def get_shop_orders(shop_id: str):
         orders = [dict(row._mapping) for row in result]
 
     return orders
+
+
+@router.get("/{shop_id}/orders/pending")
+def get_pending_orders(shop_id: str):
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            total_pages,
+            estimated_cost,
+            status,
+            payment_status,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+          AND status = 'PENDING'
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        orders = [dict(row._mapping) for row in result]
+
+    return orders
+
+
+@router.get("/{shop_id}/orders/in-progress")
+def get_in_progress_orders(shop_id: str):
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            total_pages,
+            estimated_cost,
+            status,
+            payment_status,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+          AND status = 'IN_PROGRESS'
+        ORDER BY created_at ASC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        orders = [dict(row._mapping) for row in result]
+
+    return orders
+
+
+@router.get("/{shop_id}/orders/completed")
+def get_completed_orders(shop_id: str):
+    query = text("""
+        SELECT
+            id,
+            student_id,
+            total_pages,
+            estimated_cost,
+            status,
+            payment_status,
+            created_at
+        FROM orders
+        WHERE shop_id = :shop_id
+          AND status = 'COMPLETED'
+        ORDER BY created_at DESC
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query, {"shop_id": shop_id})
+        orders = [dict(row._mapping) for row in result]
+
+    return orders

@@ -5,6 +5,8 @@ from app.routes.orders import router as orders_router
 from app.routes import shops
 from app.routes import orders
 from app.routes import admin
+from app.routes.student import router as student_router
+
 
 app = FastAPI()
 
@@ -14,3 +16,4 @@ app.include_router(orders_router)
 app.include_router(shops.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
+app.include_router(student_router)

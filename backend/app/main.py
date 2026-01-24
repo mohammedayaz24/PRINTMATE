@@ -6,7 +6,6 @@ from app.routes import shops
 from app.routes import orders
 from app.routes import admin
 from app.routes.student import router as student_router
-from app.services.pricing import calculate_price
 
 
 

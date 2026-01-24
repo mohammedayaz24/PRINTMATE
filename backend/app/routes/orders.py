@@ -3,6 +3,7 @@ from sqlalchemy import text
 from datetime import datetime, timedelta
 from app.database import engine
 from typing import Optional
+from fastapi import Header
 
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -299,61 +300,75 @@ def complete_order(order_id: str):
         "status": row.status
     }
 
+
+    from fastapi import Header
+
 @router.patch("/{order_id}/pay")
-def mark_order_paid(
+def pay_order(
     order_id: str,
+    payload: dict,
     role: str = Header(..., alias="X-ROLE"),
     shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
 ):
+    """
+    Payload:
+    {
+        "payment_mode": "CASH" | "UPI"
+    }
+    """
+
+    payment_mode = payload.get("payment_mode")
+
+    if payment_mode not in ("CASH", "UPI"):
+        raise HTTPException(status_code=400, detail="Invalid payment mode")
+
+    if role not in ("ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
     with engine.connect() as connection:
 
+        # Fetch order
         order = connection.execute(
-            text("SELECT shop_id, payment_status FROM orders WHERE id = :id"),
-            {"id": order_id}
-        ).fetchone()
-
-        if not order:
-            raise HTTPException(404, "Order not found")
-
-        # SUPER ADMIN → always allowed
-        if role == "SUPER_ADMIN":
-            pass
-
-
-            
-        # ADMIN → must own the shop
-        elif role == "ADMIN":
-            if not shop_id or shop_id != order.shop_id:
-                raise HTTPException(403, "Not your shop order")
-
-        else:
-            raise HTTPException(403, "Access denied")
-
-        if order.payment_status == "PAID":
-            return {"detail": "Already paid"}
-        
-
-        print("ROLE:", role)
-        print("HEADER SHOP ID:", shop_id)
-        print("ORDER SHOP ID:", order.shop_id)
-
-
-        updated = connection.execute(
             text("""
-                UPDATE orders
-                SET payment_status = 'PAID'
+                SELECT shop_id, payment_status
+                FROM orders
                 WHERE id = :id
-                RETURNING id, payment_status
             """),
             {"id": order_id}
         ).fetchone()
 
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # ADMIN → shop ownership check
+        if role == "ADMIN":
+            if not shop_id or shop_id != order.shop_id:
+                raise HTTPException(status_code=403, detail="Not your shop order")
+
+        # Already paid?
+        if order.payment_status == "PAID":
+            raise HTTPException(status_code=400, detail="Order already paid")
+
+        # Update payment
+        updated = connection.execute(
+            text("""
+                UPDATE orders
+                SET payment_status = 'PAID',
+                    payment_mode = :payment_mode,
+                    paid_at = NOW()
+                WHERE id = :id
+                RETURNING id, payment_status, payment_mode, paid_at
+            """),
+            {
+                "id": order_id,
+                "payment_mode": payment_mode
+            }
+        ).fetchone()
+
         connection.commit()
 
-    return {
-        "order_id": updated.id,
-        "payment_status": updated.payment_status
-    }
+    return dict(updated._mapping)
+
 
 
 
@@ -381,72 +396,4 @@ def deliver_order(order_id: str):
     }
 
 
-from typing import Optional
-from fastapi import Header
 
-@router.patch("/{order_id}/pay")
-def pay_order(
-    order_id: str,
-    payload: dict,
-    role: str = Header(..., alias="X-ROLE"),
-    shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
-):
-    """
-    Payload:
-    {
-        "payment_mode": "CASH" | "UPI"
-    }
-    """
-
-    payment_mode = payload.get("payment_mode")
-
-    if payment_mode not in ("CASH", "UPI"):
-        raise HTTPException(status_code=400, detail="Invalid payment mode")
-
-    if role not in ("ADMIN", "SUPER_ADMIN"):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    with engine.connect() as connection:
-
-        order = connection.execute(
-            text("""
-                SELECT shop_id, payment_status
-                FROM orders
-                WHERE id = :id
-            """),
-            {"id": order_id}
-        ).fetchone()
-
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
-
-        # ADMIN → shop ownership check
-        if role == "ADMIN" and shop_id != order.shop_id:
-            raise HTTPException(status_code=403, detail="Not your shop order")
-
-        if order.payment_status == "PAID":
-            return {"detail": "Order already paid"}
-
-        result = connection.execute(
-            text("""
-                UPDATE orders
-                SET payment_status = 'PAID',
-                    payment_mode = :payment_mode,
-                    paid_at = NOW()
-                WHERE id = :id
-                RETURNING id, payment_status, payment_mode, paid_at
-            """),
-            {
-                "id": order_id,
-                "payment_mode": payment_mode
-            }
-        ).fetchone()
-
-        connection.commit()
-
-    return {
-        "order_id": result.id,
-        "payment_status": result.payment_status,
-        "payment_mode": result.payment_mode,
-        "paid_at": result.paid_at
-    }

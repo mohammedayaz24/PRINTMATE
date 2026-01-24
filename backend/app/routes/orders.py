@@ -331,6 +331,12 @@ def mark_order_paid(
 
         if order.payment_status == "PAID":
             return {"detail": "Already paid"}
+        
+
+        print("ROLE:", role)
+        print("HEADER SHOP ID:", shop_id)
+        print("ORDER SHOP ID:", order.shop_id)
+
 
         updated = connection.execute(
             text("""

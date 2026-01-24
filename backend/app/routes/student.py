@@ -3,6 +3,8 @@ from sqlalchemy import text
 from app.database import engine
 from io import BytesIO
 from PIL import Image
+from app.services.pricing import calculate_price
+
 
 router = APIRouter(prefix="/student", tags=["Student"])
 
@@ -238,7 +240,7 @@ def set_print_options(
         # 1. Validate ownership & status
         order = connection.execute(
             text("""
-                SELECT status
+                SELECT id, status, total_pages
                 FROM orders
                 WHERE id = :order_id
                   AND student_id = :student_id
@@ -248,6 +250,20 @@ def set_print_options(
 
         if not order:
             raise HTTPException(403, "Order not found or not yours")
+        
+        if order.payment_status == "PAID":
+            raise HTTPException(
+            status_code=400,
+            detail="Order already paid. Print options are locked."
+        )
+
+        if order.status != "PENDING":
+            raise HTTPException(
+            status_code=400,
+            detail="Print options can only be set while order is PENDING"
+    )
+
+
 
         if order.status != "PENDING":
             raise HTTPException(
@@ -292,7 +308,35 @@ def set_print_options(
             }
         ).fetchone()
 
+        # 3. 🔥 STEP 4.3 — RECALCULATE PRICE
+        price = calculate_price(
+            total_pages=order.total_pages,
+            color_mode=payload["color_mode"],
+            side_mode=payload["side_mode"],
+            copies=payload["copies"],
+            binding=payload["binding"]
+        )
+
+        connection.execute(
+            text("""
+                UPDATE orders
+                SET estimated_cost = :price
+                WHERE id = :order_id
+            """),
+            {
+                "price": price,
+                "order_id": order_id
+            }
+        )
+
         connection.commit()
+
+    return {
+        "order_id": order_id,
+        "print_options": dict(result._mapping),
+        "estimated_cost": price
+    }
+
 
     return dict(result._mapping)
 

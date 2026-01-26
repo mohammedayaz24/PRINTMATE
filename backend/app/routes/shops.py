@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from sqlalchemy import text
 from app.database import engine
 
@@ -195,3 +195,94 @@ def get_completed_orders(shop_id: str):
         orders = [dict(row._mapping) for row in result]
 
     return orders
+
+
+@router.get("/orders/pending")
+def get_pending_orders(
+    role: str = Header(..., alias="X-ROLE"),
+    shop_id: str = Header(..., alias="X-SHOP-ID")
+):
+    role = role.strip().upper()
+
+    if role != "ADMIN":
+        raise HTTPException(403, "Access denied")
+
+    with engine.connect() as connection:
+        orders = connection.execute(
+            text("""
+                SELECT
+                    id,
+                    student_id,
+                    total_pages,
+                    estimated_cost,
+                    created_at
+                FROM orders
+                WHERE shop_id = :shop_id
+                  AND status = 'PENDING'
+                ORDER BY created_at ASC
+            """),
+            {"shop_id": shop_id}
+        ).fetchall()
+
+    return [dict(o._mapping) for o in orders]
+
+
+@router.get("/orders/in-progress")
+def get_in_progress_orders(
+    role: str = Header(..., alias="X-ROLE"),
+    shop_id: str = Header(..., alias="X-SHOP-ID")
+):
+    role = role.strip().upper()
+
+    if role != "ADMIN":
+        raise HTTPException(403, "Access denied")
+
+    with engine.connect() as connection:
+        orders = connection.execute(
+            text("""
+                SELECT
+                    id,
+                    student_id,
+                    total_pages,
+                    estimated_cost,
+                    created_at
+                FROM orders
+                WHERE shop_id = :shop_id
+                  AND status = 'IN_PROGRESS'
+                ORDER BY created_at ASC
+            """),
+            {"shop_id": shop_id}
+        ).fetchall()
+
+    return [dict(o._mapping) for o in orders]
+
+
+@router.get("/orders/completed")
+def get_completed_orders(
+    role: str = Header(..., alias="X-ROLE"),
+    shop_id: str = Header(..., alias="X-SHOP-ID")
+):
+    role = role.strip().upper()
+
+    if role != "ADMIN":
+        raise HTTPException(403, "Access denied")
+
+    with engine.connect() as connection:
+        orders = connection.execute(
+            text("""
+                SELECT
+                    id,
+                    student_id,
+                    final_cost,
+                    payment_status,
+                    paid_at,
+                    created_at
+                FROM orders
+                WHERE shop_id = :shop_id
+                  AND status = 'COMPLETED'
+                ORDER BY created_at DESC
+            """),
+            {"shop_id": shop_id}
+        ).fetchall()
+
+    return [dict(o._mapping) for o in orders]

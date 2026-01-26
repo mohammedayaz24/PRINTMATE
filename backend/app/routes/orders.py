@@ -1,108 +1,80 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from sqlalchemy import text
 from datetime import datetime, timedelta
-from app.database import engine
 from typing import Optional
-from fastapi import Header
+from math import ceil
 
+from app.database import engine
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
-
+# ----------------------------------------------------
+# ORDER CREATION
+# ----------------------------------------------------
 @router.post("/")
 def create_order(order: dict):
-    """
-    Expected input:
-    {
-      "student_id": "...",
-      "shop_id": "...",
-      "total_pages": 20,
-      "estimated_cost": 30
-    }
-    """
-
     with engine.connect() as connection:
 
-        # 1. Check shop status + avg print time
-        shop_query = text("""
-            SELECT accepting_orders, avg_print_time_per_page
-            FROM shops
-            WHERE id = :shop_id
-        """)
-        shop = connection.execute(shop_query, {"shop_id": order["shop_id"]}).fetchone()
+        shop = connection.execute(
+            text("""
+                SELECT accepting_orders, avg_print_time_per_page
+                FROM shops
+                WHERE id = :shop_id
+            """),
+            {"shop_id": order["shop_id"]}
+        ).fetchone()
 
         if not shop:
-            raise HTTPException(status_code=404, detail="Shop not found")
+            raise HTTPException(404, "Shop not found")
 
         if not shop.accepting_orders:
-            raise HTTPException(status_code=400, detail="Shop not accepting orders")
+            raise HTTPException(400, "Shop not accepting orders")
 
-        avg_time = shop.avg_print_time_per_page  # seconds per page
-
-        # 2. Count queued pages
-        queue_query = text("""
-            SELECT COALESCE(SUM(total_pages), 0)
-            FROM orders
-            WHERE shop_id = :shop_id
-              AND status IN ('PENDING', 'IN_PROGRESS')
-        """)
         queued_pages = connection.execute(
-            queue_query, {"shop_id": order["shop_id"]}
+            text("""
+                SELECT COALESCE(SUM(total_pages), 0)
+                FROM orders
+                WHERE shop_id = :shop_id
+                  AND status IN ('PENDING', 'IN_PROGRESS')
+            """),
+            {"shop_id": order["shop_id"]}
         ).scalar()
 
-        # 3. Calculate ETA
-        total_seconds = (queued_pages + order["total_pages"]) * avg_time
-        estimated_ready_time = datetime.utcnow() + timedelta(seconds=total_seconds)
+        eta = datetime.utcnow() + timedelta(
+            seconds=(queued_pages + order["total_pages"]) * shop.avg_print_time_per_page
+        )
 
-        # 4. Insert order
-        insert_query = text("""
-            INSERT INTO orders (
-                student_id,
-                shop_id,
-                total_pages,
-                status,
-                payment_status,
-                estimated_cost,
-                estimated_ready_time
-            )
-            VALUES (
-                :student_id,
-                :shop_id,
-                :total_pages,
-                'PENDING',
-                'UNPAID',
-                :estimated_cost,
-                :estimated_ready_time
-            )
-            RETURNING id, estimated_ready_time
-        """)
+        result = connection.execute(
+            text("""
+                INSERT INTO orders (
+                    student_id, shop_id, total_pages,
+                    status, payment_status,
+                    estimated_cost, estimated_ready_time
+                )
+                VALUES (
+                    :student_id, :shop_id, :total_pages,
+                    'PENDING', 'UNPAID',
+                    :estimated_cost, :eta
+                )
+                RETURNING id, estimated_ready_time
+            """),
+            {**order, "eta": eta}
+        ).fetchone()
 
-        result = connection.execute(insert_query, {
-            **order,
-            "estimated_ready_time": estimated_ready_time
-        })
-
-        row = result.fetchone()
         connection.commit()
 
-    return {
-        "order_id": row.id,
-        "estimated_ready_time": row.estimated_ready_time
-    }
+    return dict(result._mapping)
 
 
-from fastapi import HTTPException
-from sqlalchemy import text
-from app.database import engine
-
+# ----------------------------------------------------
+# STATUS TRANSITIONS
+# ----------------------------------------------------
 VALID_TRANSITIONS = {
-    "PENDING": ["IN_PROGRESS"],
+    "PENDING": ["IN_PROGRESS", "CANCELLED"],
     "IN_PROGRESS": ["COMPLETED"],
     "COMPLETED": ["DELIVERED"]
 }
 
-
-from fastapi import Header
 
 @router.patch("/{order_id}/status")
 def update_order_status(
@@ -111,258 +83,44 @@ def update_order_status(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
 ):
+    role = role.strip().upper()
     new_status = payload.get("status")
 
     if not new_status:
-        raise HTTPException(status_code=400, detail="Status is required")
+        raise HTTPException(400, "Status required")
 
     if role not in ("ADMIN", "SUPER_ADMIN"):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(403, "Access denied")
 
     with engine.connect() as connection:
-
-        # 1. Fetch order (YOU ALREADY HAVE THIS)
         order = connection.execute(
             text("""
-                SELECT status, shop_id
-                FROM orders
-                WHERE id = :order_id
-            """),
-            {"order_id": order_id}
-        ).fetchone()
-
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
-
-        current_status = order.status
-        order_shop_id = order.shop_id
-
-        # 2. Shop admin restriction
-        if role == "ADMIN" and shop_id != order_shop_id:
-            raise HTTPException(status_code=403, detail="Not your shop order")
-
-        # 3. VALIDATE STATUS TRANSITION
-        if new_status not in VALID_TRANSITIONS.get(current_status, []):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid transition from {current_status} to {new_status}"
-            )
-
-        # ✅ ADD PAYMENT CHECK **HERE**
-        if new_status == "DELIVERED":
-            payment = connection.execute(
-                text("""
-                    SELECT payment_status
-                    FROM orders
-                    WHERE id = :id
-                """),
-                {"id": order_id}
-            ).fetchone()
-
-            if payment.payment_status != "PAID":
-                raise HTTPException(
-                    status_code=400,
-                    detail="Order must be PAID before delivery"
-                )
-
-        # 4. UPDATE STATUS (ONLY AFTER ALL CHECKS)
-        updated = connection.execute(
-            text("""
-                UPDATE orders
-                SET status = :new_status
-                WHERE id = :order_id
-                RETURNING id, status
-            """),
-            {
-                "order_id": order_id,
-                "new_status": new_status
-            }
-        ).fetchone()
-
-        connection.commit()
-
-    return {
-        "order_id": updated.id,
-        "status": updated.status
-    }
-
-
-
-@router.get("/{order_id}/track")
-def track_order(order_id: str):
-    """
-    Track a single order with live queue position
-    """
-
-    query = text("""
-        SELECT
-            o.id,
-            o.student_id,
-            o.shop_id,
-            o.status,
-            o.total_pages,
-            o.estimated_ready_time,
-            o.created_at,
-            (
-                SELECT COUNT(*)
-                FROM orders q
-                WHERE q.shop_id = o.shop_id
-                  AND q.status IN ('PENDING', 'IN_PROGRESS')
-                  AND q.created_at <= o.created_at
-            ) AS queue_position
-        FROM orders o
-        WHERE o.id = :order_id
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query, {"order_id": order_id})
-        row = result.fetchone()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    return {
-        "order_id": row.id,
-        "student_id": row.student_id,
-        "shop_id": row.shop_id,
-        "status": row.status,
-        "queue_position": row.queue_position,
-        "total_pages": row.total_pages,
-        "estimated_ready_time": row.estimated_ready_time,
-        "created_at": row.created_at
-    }
-
-@router.patch("/{order_id}/start")
-def start_printing(order_id: str):
-    query = text("""
-        UPDATE orders
-        SET status = 'IN_PROGRESS'
-        WHERE id = :order_id AND status = 'PENDING'
-        RETURNING id, status
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query, {"order_id": order_id})
-        row = result.fetchone()
-        connection.commit()
-
-    if not row:
-        return {"detail": "Order not found or already started"}
-
-    return {
-        "order_id": row.id,
-        "status": row.status
-    }
-
-@router.get("/admin/in-progress")
-def get_in_progress_orders():
-    query = text("""
-        SELECT
-            id,
-            student_id,
-            shop_id,
-            total_pages,
-            estimated_cost,
-            status,
-            payment_status,
-            created_at
-        FROM orders
-        WHERE status = 'IN_PROGRESS'
-        ORDER BY created_at ASC
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        orders = [dict(row._mapping) for row in result]
-
-    return orders
-
-@router.patch("/{order_id}/complete")
-def complete_order(order_id: str):
-    query = text("""
-        UPDATE orders
-        SET status = 'COMPLETED'
-        WHERE id = :order_id
-          AND status = 'IN_PROGRESS'
-        RETURNING id, status
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query, {"order_id": order_id})
-        row = result.fetchone()
-        connection.commit()
-
-    if not row:
-        return {"detail": "Order not in progress or not found"}
-
-    return {
-        "order_id": row.id,
-        "status": row.status
-    }
-
-
-    from fastapi import Header
-
-@router.patch("/{order_id}/pay")
-def pay_order(
-    order_id: str,
-    payload: dict,
-    role: str = Header(..., alias="X-ROLE"),
-    shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
-):
-    """
-    Payload:
-    {
-        "payment_mode": "CASH" | "UPI"
-    }
-    """
-
-    payment_mode = payload.get("payment_mode")
-
-    if payment_mode not in ("CASH", "UPI"):
-        raise HTTPException(status_code=400, detail="Invalid payment mode")
-
-    if role not in ("ADMIN", "SUPER_ADMIN"):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    with engine.connect() as connection:
-
-        # Fetch order
-        order = connection.execute(
-            text("""
-                SELECT shop_id, payment_status
-                FROM orders
-                WHERE id = :id
+                SELECT status, shop_id, payment_status
+                FROM orders WHERE id = :id
             """),
             {"id": order_id}
         ).fetchone()
 
         if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
+            raise HTTPException(404, "Order not found")
 
-        # ADMIN → shop ownership check
-        if role == "ADMIN":
-            if not shop_id or shop_id != order.shop_id:
-                raise HTTPException(status_code=403, detail="Not your shop order")
+        if role == "ADMIN" and shop_id != str(order.shop_id):
+            raise HTTPException(403, "Not your shop order")
 
-        # Already paid?
-        if order.payment_status == "PAID":
-            raise HTTPException(status_code=400, detail="Order already paid")
+        if new_status not in VALID_TRANSITIONS.get(order.status, []):
+            raise HTTPException(400, "Invalid status transition")
 
-        # Update payment
+        if new_status == "DELIVERED" and order.payment_status != "PAID":
+            raise HTTPException(400, "Order must be PAID before delivery")
+
         updated = connection.execute(
             text("""
                 UPDATE orders
-                SET payment_status = 'PAID',
-                    payment_mode = :payment_mode,
-                    paid_at = NOW()
+                SET status = :status
                 WHERE id = :id
-                RETURNING id, payment_status, payment_mode, paid_at
+                RETURNING id, status
             """),
-            {
-                "id": order_id,
-                "payment_mode": payment_mode
-            }
+            {"id": order_id, "status": new_status}
         ).fetchone()
 
         connection.commit()
@@ -370,30 +128,186 @@ def pay_order(
     return dict(updated._mapping)
 
 
+# ----------------------------------------------------
+# FINALIZE COST
+# ----------------------------------------------------
+@router.post("/{order_id}/finalize-cost")
+def finalize_cost(
+    order_id: str,
+    role: str = Header(..., alias="X-ROLE"),
+    shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
+):
+    role = role.strip().upper()
 
-
-@router.patch("/{order_id}/deliver")
-def deliver_order(order_id: str):
-    query = text("""
-        UPDATE orders
-        SET status = 'DELIVERED'
-        WHERE id = :order_id
-          AND status = 'COMPLETED'
-        RETURNING id, status
-    """)
+    if role not in ("ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(403, "Access denied")
 
     with engine.connect() as connection:
-        result = connection.execute(query, {"order_id": order_id})
-        row = result.fetchone()
+        order = connection.execute(
+            text("""
+                SELECT total_pages, shop_id, status, payment_status
+                FROM orders WHERE id = :id
+            """),
+            {"id": order_id}
+        ).fetchone()
+
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        if role == "ADMIN" and shop_id != str(order.shop_id):
+            raise HTTPException(403, "Not your shop order")
+
+        if order.payment_status == "PAID":
+            raise HTTPException(400, "Already paid")
+
+        if order.status != "PENDING":
+            raise HTTPException(400, "Must be PENDING")
+
+        options = connection.execute(
+            text("""
+                SELECT color_mode, side_mode, binding, copies
+                FROM print_options WHERE order_id = :id
+            """),
+            {"id": order_id}
+        ).fetchone()
+
+        if not options:
+            raise HTTPException(400, "Print options missing")
+
+        page_cost = 5 if options.color_mode == "COLOR" else 1
+        binding_cost = 20 if options.binding == "SPIRAL" else 0
+
+        effective_pages = (
+            ceil(order.total_pages / 2)
+            if options.side_mode == "DOUBLE"
+            else order.total_pages
+        )
+
+        final_cost = effective_pages * page_cost * options.copies + binding_cost
+
+        result = connection.execute(
+            text("""
+                UPDATE orders
+                SET final_cost = :cost
+                WHERE id = :id
+                RETURNING id, final_cost
+            """),
+            {"id": order_id, "cost": final_cost}
+        ).fetchone()
+
         connection.commit()
 
-    if not row:
-        return {"detail": "Order not completed or not found"}
-
-    return {
-        "order_id": row.id,
-        "status": row.status
-    }
+    return dict(result._mapping)
 
 
+# ----------------------------------------------------
+# PAYMENT + INVOICE
+# ----------------------------------------------------
+@router.patch("/{order_id}/pay")
+def pay_order(
+    order_id: str,
+    payload: dict,
+    role: str = Header(..., alias="X-ROLE"),
+    shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
+):
+    role = role.strip().upper()
+    payment_mode = payload.get("payment_mode")
 
+    if payment_mode not in ("CASH", "UPI"):
+        raise HTTPException(400, "Invalid payment mode")
+
+    if role not in ("ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(403, "Access denied")
+
+    with engine.connect() as connection:
+        order = connection.execute(
+            text("""
+                SELECT shop_id, payment_status, final_cost
+                FROM orders WHERE id = :id
+            """),
+            {"id": order_id}
+        ).fetchone()
+
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        if role == "ADMIN" and shop_id != str(order.shop_id):
+            raise HTTPException(403, "Not your shop order")
+
+        if order.final_cost is None:
+            raise HTTPException(400, "Finalize cost before payment")
+
+        if order.payment_status == "PAID":
+            return {"detail": "Already paid"}
+
+        connection.execute(
+            text("""
+                UPDATE orders
+                SET payment_status = 'PAID',
+                    payment_mode = :mode,
+                    paid_at = NOW()
+                WHERE id = :id
+            """),
+            {"id": order_id, "mode": payment_mode}
+        )
+
+        connection.execute(
+            text("""
+                INSERT INTO invoices (
+                    order_id, invoice_number,
+                    subtotal, tax, total
+                )
+                VALUES (
+                    :order_id, :invoice,
+                    :total, 0, :total
+                )
+                ON CONFLICT (order_id) DO NOTHING
+            """),
+            {
+                "order_id": order_id,
+                "invoice": f"INV-{datetime.utcnow().strftime('%Y%m%d')}-{order_id[:6]}",
+                "total": order.final_cost
+            }
+        )
+
+        connection.commit()
+
+    return {"order_id": order_id, "status": "PAID"}
+
+
+# ----------------------------------------------------
+# FRONTEND INVOICE (JSON)
+# ----------------------------------------------------
+@router.get("/{order_id}/invoice")
+def get_invoice(order_id: str):
+    with engine.connect() as connection:
+        invoice = connection.execute(
+            text("""
+                SELECT
+                    i.invoice_number,
+                    i.subtotal,
+                    i.tax,
+                    i.total,
+                    i.generated_at,
+                    o.student_id,
+                    o.shop_id,
+                    o.payment_mode,
+                    o.paid_at,
+                    po.page_ranges,
+                    po.color_mode,
+                    po.side_mode,
+                    po.orientation,
+                    po.binding,
+                    po.copies
+                FROM invoices i
+                JOIN orders o ON o.id = i.order_id
+                LEFT JOIN print_options po ON po.order_id = o.id
+                WHERE i.order_id = :id
+            """),
+            {"id": order_id}
+        ).fetchone()
+
+        if not invoice:
+            raise HTTPException(404, "Invoice not found")
+
+    return dict(invoice._mapping)

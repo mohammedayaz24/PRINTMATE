@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate Admin - Orders</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="admin">
+
+<div class="header">
+  <div class="brand">PrintMate Admin</div>
+  <div class="nav">
+    <a href="index.html">Dashboard</a>
+    <a class="active" href="orders.html">Orders</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="page-header">
+    <div>
+      <div class="eyebrow">Admin Orders</div>
+      <div class="page-title">Orders Overview</div>
+      <p class="subtitle">Track every order, filter by status or payment, and open any job in one click.</p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="refreshBtn">Refresh</button>
+      <a class="btn primary" href="index.html">Go to Dashboard</a>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-meta" id="statUpdated">Updated -</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="statPending">0</div>
+      <div class="stat-meta">Awaiting start</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">In Progress</div>
+      <div class="stat-value" id="statInProgress">0</div>
+      <div class="stat-meta">Printing now</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value" id="statCompleted">0</div>
+      <div class="stat-meta">Ready for pickup</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Delivered</div>
+      <div class="stat-value" id="statDelivered">0</div>
+      <div class="stat-meta">Closed orders</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unpaid</div>
+      <div class="stat-value" id="statUnpaid">0</div>
+      <div class="stat-meta">Needs payment</div>
+    </div>
+  </section>
+
+  <section class="filters">
+    <div class="filters-top">
+      <div class="search-box">
+        <input id="searchInput" type="search" placeholder="Search by order id, student id, or shop id" />
+        <div class="search-hint">Showing <span id="resultCount">0</span> of <span id="totalCount">0</span> orders</div>
+      </div>
+      <div class="sort">
+        <label for="sortSelect">Sort</label>
+        <select id="sortSelect">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="id_desc">Order id high</option>
+          <option value="id_asc">Order id low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-label">Status</div>
+      <div class="filter-chips" id="statusFilters">
+        <button class="chip active" data-status="ALL">All</button>
+        <button class="chip" data-status="PENDING">Pending</button>
+        <button class="chip" data-status="IN_PROGRESS">In progress</button>
+        <button class="chip" data-status="COMPLETED">Completed</button>
+        <button class="chip" data-status="DELIVERED">Delivered</button>
+        <button class="chip" data-status="CANCELLED">Cancelled</button>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-label">Payment</div>
+      <div class="filter-chips" id="paymentFilters">
+        <button class="chip active" data-payment="ALL">All</button>
+        <button class="chip" data-payment="PAID">Paid</button>
+        <button class="chip" data-payment="UNPAID">Unpaid</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="state" class="state"></div>
+  <div id="orders" class="grid orders-grid"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  const ordersDiv = document.getElementById("orders");
+  const stateDiv = document.getElementById("state");
+
+  const statTotal = document.getElementById("statTotal");
+  const statPending = document.getElementById("statPending");
+  const statInProgress = document.getElementById("statInProgress");
+  const statCompleted = document.getElementById("statCompleted");
+  const statDelivered = document.getElementById("statDelivered");
+  const statUnpaid = document.getElementById("statUnpaid");
+  const statUpdated = document.getElementById("statUpdated");
+  const resultCount = document.getElementById("resultCount");
+  const totalCount = document.getElementById("totalCount");
+
+  const searchInput = document.getElementById("searchInput");
+  const sortSelect = document.getElementById("sortSelect");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  const statusChips = Array.from(document.querySelectorAll("[data-status]"));
+  const paymentChips = Array.from(document.querySelectorAll("[data-payment]"));
+
+  let allOrders = [];
+  const filters = {
+    status: "ALL",
+    payment: "ALL",
+    query: "",
+    sort: "newest"
+  };
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function toTime(value) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  function compareId(a, b) {
+    const aNum = Number(a);
+    const bNum = Number(b);
+    if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+      return aNum - bNum;
+    }
+    return String(a).localeCompare(String(b));
+  }
+
+  function formatCurrency(value) {
+    if (value === null || value === undefined || value === "") {
+      return "-";
+    }
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return String(value);
+    }
+    try {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0
+      }).format(numeric);
+    } catch (err) {
+      return "INR " + numeric;
+    }
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return "-";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+    return date.toLocaleString();
+  }
+
+  function updateStats() {
+    const counts = {
+      total: allOrders.length,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      delivered: 0,
+      unpaid: 0
+    };
+
+    allOrders.forEach(order => {
+      const status = normalizeUpper(order.status);
+      const payment = normalizeUpper(order.payment_status);
+
+      if (status === "PENDING") counts.pending += 1;
+      if (status === "IN_PROGRESS") counts.inProgress += 1;
+      if (status === "COMPLETED") counts.completed += 1;
+      if (status === "DELIVERED") counts.delivered += 1;
+      if (payment === "UNPAID") counts.unpaid += 1;
+    });
+
+    statTotal.textContent = counts.total;
+    statPending.textContent = counts.pending;
+    statInProgress.textContent = counts.inProgress;
+    statCompleted.textContent = counts.completed;
+    statDelivered.textContent = counts.delivered;
+    statUnpaid.textContent = counts.unpaid;
+    totalCount.textContent = counts.total;
+
+    const now = new Date();
+    statUpdated.textContent = "Updated " + now.toLocaleString();
+  }
+
+  function setChipActive(chips, activeValue, key) {
+    chips.forEach(chip => {
+      const value = chip.dataset[key];
+      chip.classList.toggle("active", value === activeValue);
+    });
+  }
+
+  function applyFilters() {
+    let filtered = [...allOrders];
+    const query = filters.query.toLowerCase();
+
+    if (query) {
+      filtered = filtered.filter(order => {
+        const id = normalize(order.id).toLowerCase();
+        const student = normalize(order.student_id).toLowerCase();
+        const shop = normalize(order.shop_id).toLowerCase();
+        return id.includes(query) || student.includes(query) || shop.includes(query);
+      });
+    }
+
+    if (filters.status !== "ALL") {
+      filtered = filtered.filter(order => normalizeUpper(order.status) === filters.status);
+    }
+
+    if (filters.payment !== "ALL") {
+      filtered = filtered.filter(order => normalizeUpper(order.payment_status) === filters.payment);
+    }
+
+    if (filters.sort === "newest") {
+      filtered.sort((a, b) => (toTime(b.created_at) - toTime(a.created_at)) || compareId(b.id, a.id));
+    } else if (filters.sort === "oldest") {
+      filtered.sort((a, b) => (toTime(a.created_at) - toTime(b.created_at)) || compareId(a.id, b.id));
+    } else if (filters.sort === "id_desc") {
+      filtered.sort((a, b) => compareId(b.id, a.id));
+    } else if (filters.sort === "id_asc") {
+      filtered.sort((a, b) => compareId(a.id, b.id));
+    }
+
+    renderOrders(filtered);
+    resultCount.textContent = filtered.length;
+  }
+
+  function renderOrders(orders) {
+    if (!orders.length) {
+      ordersDiv.innerHTML = "";
+      stateDiv.textContent = "No orders match your filters.";
+      return;
+    }
+
+    stateDiv.textContent = "";
+
+    const cards = orders.map(order => {
+      const status = normalizeUpper(order.status) || "UNKNOWN";
+      const payment = normalizeUpper(order.payment_status) || "UNKNOWN";
+      const statusLabel = status.replace(/_/g, " ");
+      const paymentMode = normalizeUpper(order.payment_mode);
+      const paymentMeta = paymentMode ? " | " + paymentMode : "";
+      const pages = order.total_pages !== undefined && order.total_pages !== null ? order.total_pages : "-";
+      const costValue = order.final_cost !== null && order.final_cost !== undefined
+        ? formatCurrency(order.final_cost)
+        : formatCurrency(order.estimated_cost);
+      const costLabel = order.final_cost !== null && order.final_cost !== undefined ? "Final cost" : "Est. cost";
+      const readyLabel = order.estimated_ready_time ? "Ready by" : "Created";
+      const readyValue = order.estimated_ready_time ? formatDate(order.estimated_ready_time) : formatDate(order.created_at);
+
+      return `
+        <div class="card order-card" data-id="${order.id}">
+          <div class="order-top">
+            <div class="order-id">Order #${order.id}</div>
+            <div class="status-pill ${status}">${statusLabel}</div>
+          </div>
+          <div class="order-meta">
+            <div>
+              <span>Student</span>
+              <strong>${order.student_id ?? "-"}</strong>
+            </div>
+            <div>
+              <span>Shop</span>
+              <strong>${order.shop_id ?? "-"}</strong>
+            </div>
+          </div>
+          <div class="order-details">
+            <div class="detail">
+              <div class="detail-label">Pages</div>
+              <div class="detail-value">${pages}</div>
+            </div>
+            <div class="detail">
+              <div class="detail-label">${costLabel}</div>
+              <div class="detail-value">${costValue}</div>
+            </div>
+            <div class="detail">
+              <div class="detail-label">${readyLabel}</div>
+              <div class="detail-value">${readyValue}</div>
+            </div>
+          </div>
+          <div class="order-foot">
+            <div class="payment-pill ${payment}">${payment}${paymentMeta}</div>
+            <div class="cta">View details -></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    ordersDiv.innerHTML = cards;
+    document.querySelectorAll(".order-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const id = card.dataset.id;
+        if (id) {
+          window.location.href = `order-detail.html?id=${id}`;
+        }
+      });
+    });
+  }
+
+  function wireFilters() {
+    statusChips.forEach(chip => {
+      chip.addEventListener("click", () => {
+        filters.status = chip.dataset.status;
+        setChipActive(statusChips, filters.status, "status");
+        applyFilters();
+      });
+    });
+
+    paymentChips.forEach(chip => {
+      chip.addEventListener("click", () => {
+        filters.payment = chip.dataset.payment;
+        setChipActive(paymentChips, filters.payment, "payment");
+        applyFilters();
+      });
+    });
+
+    searchInput.addEventListener("input", event => {
+      filters.query = event.target.value;
+      applyFilters();
+    });
+
+    sortSelect.addEventListener("change", event => {
+      filters.sort = event.target.value;
+      applyFilters();
+    });
+
+    refreshBtn.addEventListener("click", loadOrders);
+  }
+
+  function loadOrders() {
+    stateDiv.textContent = "Loading orders...";
+    ordersDiv.innerHTML = "";
+
+    adminApi.get("/admin/orders")
+      .then(res => {
+        allOrders = Array.isArray(res.data) ? res.data : [];
+        updateStats();
+        applyFilters();
+        if (!allOrders.length) {
+          stateDiv.textContent = "No orders found.";
+        }
+      })
+      .catch(() => {
+        allOrders = [];
+        updateStats();
+        ordersDiv.innerHTML = "";
+        stateDiv.textContent = "Failed to load orders. Please try again.";
+      });
+  }
+
+  wireFilters();
+  loadOrders();
+</script>
+
+</body>
+</html>

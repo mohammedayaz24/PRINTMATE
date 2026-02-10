@@ -4,6 +4,26 @@ from app.database import engine
 
 router = APIRouter(prefix="/shops", tags=["Shops"])
 
+# Fix: keep single route set and unique handler names to avoid duplicate operation_id warnings.
+
+@router.get("")
+@router.get("/")
+def list_shops():
+    query = text("""
+        SELECT
+            id,
+            accepting_orders,
+            avg_print_time_per_page
+        FROM shops
+        ORDER BY id ASC
+    """)
+
+    with engine.connect() as connection:
+        rows = connection.execute(query).fetchall()
+        shops = [dict(row._mapping) for row in rows]
+
+    return shops
+
 
 @router.patch("/{shop_id}/toggle")
 def toggle_shop_orders(shop_id: str):
@@ -27,15 +47,17 @@ def toggle_shop_orders(shop_id: str):
         "accepting_orders": row.accepting_orders
     }
 
+
 @router.get("/{shop_id}/orders")
 def get_shop_orders(shop_id: str):
     query = text("""
         SELECT
             id,
             student_id,
+            total_pages,
+            estimated_cost,
             status,
             payment_status,
-            total_pages,
             estimated_ready_time,
             created_at
         FROM orders
@@ -49,7 +71,6 @@ def get_shop_orders(shop_id: str):
 
     return orders
 
-from sqlalchemy import text
 
 @router.get("/{shop_id}/queue")
 def get_shop_queue(shop_id: str):
@@ -94,39 +115,9 @@ def get_shop_queue(shop_id: str):
         "queue": queue
     }
 
-from fastapi import APIRouter
-from sqlalchemy import text
-from app.database import engine
-
-router = APIRouter(prefix="/shops", tags=["Shops"])
-
-
-@router.get("/{shop_id}/orders")
-def get_shop_orders(shop_id: str):
-    query = text("""
-        SELECT
-            id,
-            student_id,
-            total_pages,
-            estimated_cost,
-            status,
-            payment_status,
-            estimated_ready_time,
-            created_at
-        FROM orders
-        WHERE shop_id = :shop_id
-        ORDER BY created_at ASC
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query, {"shop_id": shop_id})
-        orders = [dict(row._mapping) for row in result]
-
-    return orders
-
 
 @router.get("/{shop_id}/orders/pending")
-def get_pending_orders(shop_id: str):
+def get_shop_pending_orders(shop_id: str):
     query = text("""
         SELECT
             id,
@@ -150,7 +141,7 @@ def get_pending_orders(shop_id: str):
 
 
 @router.get("/{shop_id}/orders/in-progress")
-def get_in_progress_orders(shop_id: str):
+def get_shop_in_progress_orders(shop_id: str):
     query = text("""
         SELECT
             id,
@@ -174,7 +165,7 @@ def get_in_progress_orders(shop_id: str):
 
 
 @router.get("/{shop_id}/orders/completed")
-def get_completed_orders(shop_id: str):
+def get_shop_completed_orders(shop_id: str):
     query = text("""
         SELECT
             id,
@@ -198,7 +189,7 @@ def get_completed_orders(shop_id: str):
 
 
 @router.get("/orders/pending")
-def get_pending_orders(
+def get_admin_pending_orders(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: str = Header(..., alias="X-SHOP-ID")
 ):
@@ -228,7 +219,7 @@ def get_pending_orders(
 
 
 @router.get("/orders/in-progress")
-def get_in_progress_orders(
+def get_admin_in_progress_orders(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: str = Header(..., alias="X-SHOP-ID")
 ):
@@ -258,7 +249,7 @@ def get_in_progress_orders(
 
 
 @router.get("/orders/completed")
-def get_completed_orders(
+def get_admin_completed_orders(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: str = Header(..., alias="X-SHOP-ID")
 ):

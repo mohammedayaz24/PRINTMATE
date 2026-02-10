@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Profile</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+
+<div class="header">
+  <div class="brand">PrintMate</div>
+  <div class="nav">
+    <a href="shops.html">Shops</a>
+    <a href="order.html">Order</a>
+    <a href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+    <a href="completed.html">History</a>
+    <a class="active" href="profile.html">Profile</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="page-header">
+    <div class="eyebrow">Account</div>
+    <div class="page-title">Profile Settings</div>
+    <p class="subtitle">Manage your student account details and see which ID is active.</p>
+  </section>
+
+  <section class="panel">
+    <div class="row">
+      <div class="label">Student ID</div>
+      <div class="value" id="studentId">-</div>
+    </div>
+    <div class="row">
+      <div class="label">Status</div>
+      <div class="value">Active</div>
+    </div>
+    <div class="row">
+      <div class="label">Default Payment</div>
+      <div class="value">Not set</div>
+    </div>
+    <div class="note">The student ID is read from the API header in `ui/js/api.js`.</div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  const studentId = window.STUDENT_ID || "Not set";
+  document.getElementById("studentId").textContent = studentId;
+</script>
+
+</body>
+</html>

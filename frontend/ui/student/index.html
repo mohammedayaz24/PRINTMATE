@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Student Dashboard</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+
+  <div class="header">
+    <div class="brand">PrintMate</div>
+    <div class="nav">
+    <a href="shops.html">Shops</a>
+    <a href="order.html">Order</a>
+    <a class="active" href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+    <a href="completed.html">History</a>
+    <a href="profile.html">Profile</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Student Dashboard</div>
+      <div class="title">Stay on top of every print.</div>
+      <p class="subtitle">Track active jobs, monitor payments, and open any order detail in seconds.</p>
+    </div>
+    <div class="actions">
+      <a class="btn ghost" href="orders.html">View Orders</a>
+      <a class="btn primary" href="completed.html">History</a>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Orders</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-meta" id="statUpdated">Updated -</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="statPending">0</div>
+      <div class="stat-meta">Waiting to start</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">In Progress</div>
+      <div class="stat-value" id="statInProgress">0</div>
+      <div class="stat-meta">Printing now</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value" id="statCompleted">0</div>
+      <div class="stat-meta">Ready or delivered</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cancelled</div>
+      <div class="stat-value" id="statCancelled">0</div>
+      <div class="stat-meta">Stopped jobs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unpaid</div>
+      <div class="stat-value" id="statUnpaid">0</div>
+      <div class="stat-meta">Needs payment</div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <section class="panel">
+      <div>
+        <div class="panel-title">Active Orders</div>
+        <div class="panel-subtitle">Pending or printing right now</div>
+      </div>
+      <div class="list" id="activeList"></div>
+    </section>
+    <section class="panel">
+      <div>
+        <div class="panel-title">Recent Orders</div>
+        <div class="panel-subtitle">Latest updates from your account</div>
+      </div>
+      <div class="list" id="recentList"></div>
+    </section>
+  </div>
+
+  <div id="state" class="state"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  const statTotal = document.getElementById("statTotal");
+  const statPending = document.getElementById("statPending");
+  const statInProgress = document.getElementById("statInProgress");
+  const statCompleted = document.getElementById("statCompleted");
+  const statCancelled = document.getElementById("statCancelled");
+  const statUnpaid = document.getElementById("statUnpaid");
+  const statUpdated = document.getElementById("statUpdated");
+
+  const activeList = document.getElementById("activeList");
+  const recentList = document.getElementById("recentList");
+  const stateDiv = document.getElementById("state");
+
+  let allOrders = [];
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function toTime(value) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function renderList(container, orders, emptyText) {
+    if (!orders.length) {
+      container.innerHTML = `<div class="panel-subtitle">${emptyText}</div>`;
+      return;
+    }
+
+    container.innerHTML = orders.map(order => {
+      const status = normalizeUpper(order.status) || "UNKNOWN";
+      return `
+        <div class="list-item" onclick="window.location.href='order-detail.html?id=${order.id}'">
+          <div class="list-info">
+            <div class="list-title">Order #${order.id}</div>
+            <div class="list-meta">${formatDate(order.created_at)}</div>
+          </div>
+          <div class="status-pill ${status}">${status.replace(/_/g, " ")}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function updateStats(stats) {
+    statTotal.textContent = stats.total ?? 0;
+    statPending.textContent = stats.pending ?? 0;
+    statInProgress.textContent = stats.in_progress ?? 0;
+    statCompleted.textContent = stats.completed ?? 0;
+    statCancelled.textContent = stats.cancelled ?? 0;
+    statUnpaid.textContent = stats.unpaid ?? 0;
+    statUpdated.textContent = "Updated " + new Date().toLocaleString();
+  }
+
+  function loadDashboard() {
+    stateDiv.textContent = "Loading dashboard...";
+
+    Promise.all([
+      api.get("/student/dashboard"),
+      api.get("/student/orders")
+    ])
+      .then(([statsRes, ordersRes]) => {
+        updateStats(statsRes.data || {});
+        const orders = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data.orders || []);
+        allOrders = orders;
+
+        const active = orders
+          .filter(order => ["PENDING", "IN_PROGRESS"].includes(normalizeUpper(order.status)))
+          .sort((a, b) => toTime(a.created_at) - toTime(b.created_at))
+          .slice(0, 4);
+
+        const recent = [...orders]
+          .sort((a, b) => toTime(b.created_at) - toTime(a.created_at))
+          .slice(0, 4);
+
+        renderList(activeList, active, "No active orders right now.");
+        renderList(recentList, recent, "No orders found yet.");
+
+        stateDiv.textContent = orders.length ? "" : "No orders yet. Create one from the print desk.";
+      })
+      .catch(() => {
+        stateDiv.textContent = "Failed to load dashboard.";
+        activeList.innerHTML = "";
+        recentList.innerHTML = "";
+      });
+  }
+
+  loadDashboard();
+</script>
+
+</body>
+</html>

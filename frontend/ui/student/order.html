@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Order Studio</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+  <div class="header">
+    <div class="brand">PrintMate</div>
+    <div class="nav">
+      <a href="shops.html">Shops</a>
+      <a class="active" href="order.html">Order</a>
+      <a href="index.html">Dashboard</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="page-header">
+      <div>
+        <div class="eyebrow">Order Studio</div>
+        <div class="page-title" id="shopTitle">Shop</div>
+        <div class="subtitle" id="shopMeta">Loading shop details...</div>
+      </div>
+      <div>
+        <div class="pill" id="shopStatus">Loading</div>
+      </div>
+    </section>
+
+    <section class="panel order-shell">
+      <div class="order-hero">
+        <div class="order-badge" id="shopBadge">PM</div>
+        <div>
+          <div class="panel-title">Shop details & pricing</div>
+          <div class="panel-subtitle" id="shopInfo">Rates used for estimates and final billing.</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Black & white</label>
+          <div class="stat-value">INR 1 / page</div>
+        </div>
+        <div>
+          <label>Color</label>
+          <div class="stat-value">INR 5 / page</div>
+        </div>
+        <div>
+          <label>Double-sided</label>
+          <div class="panel-subtitle">Counts as half the pages (rounded up).</div>
+        </div>
+        <div>
+          <label>Binding</label>
+          <div class="panel-subtitle">Spiral adds INR 20.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div>
+        <div class="panel-title">Step 1: Upload Document</div>
+        <div class="panel-subtitle">PDFs and images supported. We count pages automatically.</div>
+      </div>
+      <input id="fileInput" type="file" accept="application/pdf,image/png,image/jpeg" />
+      <div class="grid-2">
+        <div>
+          <label>Detected pages</label>
+          <input id="pageCount" type="number" readonly />
+        </div>
+        <div>
+          <label>File name</label>
+          <input id="fileName" type="text" readonly />
+        </div>
+      </div>
+      <div class="note" id="uploadState"></div>
+    </section>
+
+    <section class="panel">
+      <div>
+        <div class="panel-title">Step 2: Preferences (Canva-style)</div>
+        <div class="panel-subtitle">Adjust layout, orientation, page ranges, and see a real-time preview.</div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label for="pageRanges">Page ranges</label>
+          <input id="pageRanges" type="text" placeholder="1-10, 12, 14-16" />
+        </div>
+        <div>
+          <label for="colorMode">Color mode</label>
+          <select id="colorMode">
+            <option value="BW">Black and white</option>
+            <option value="COLOR">Color</option>
+          </select>
+        </div>
+        <div>
+          <label for="sideMode">Side mode</label>
+          <select id="sideMode">
+            <option value="SINGLE">Single</option>
+            <option value="DOUBLE">Double</option>
+          </select>
+        </div>
+        <div>
+          <label for="orientation">Orientation</label>
+          <select id="orientation">
+            <option value="PORTRAIT">Portrait</option>
+            <option value="LANDSCAPE">Landscape</option>
+          </select>
+        </div>
+        <div>
+          <label for="binding">Binding</label>
+          <select id="binding">
+            <option value="NONE">None</option>
+            <option value="SPIRAL">Spiral</option>
+          </select>
+        </div>
+        <div>
+          <label for="copies">Copies</label>
+          <input id="copies" type="number" min="1" max="10" value="1" />
+        </div>
+        <div>
+          <label>Estimated price</label>
+          <div class="stat-value" id="pricePreview">INR 0</div>
+        </div>
+        <div>
+          <label>Preview file</label>
+          <button class="btn ghost" id="previewBtn">Open Preview</button>
+        </div>
+      </div>
+      <div class="preview-panel">
+        <div class="preview-title">Live preview</div>
+        <div class="preview-canvas">
+          <canvas id="previewCanvas"></canvas>
+          <div class="preview-pages" id="previewPages">0 pages</div>
+        </div>
+        <div class="note" id="previewState">Upload a document to preview changes.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div>
+        <div class="panel-title">Step 3: Create Order</div>
+        <div class="panel-subtitle">We will upload the modified file and save preferences.</div>
+      </div>
+      <button class="btn primary" id="createOrder">Create Order</button>
+      <div class="note" id="createState"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/order.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Shops</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <!-- Amazon-style expandable shop cards (page-specific CSS) -->
+  <link rel="stylesheet" href="../css/shops.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+  <div class="header">
+    <div class="brand">PrintMate</div>
+    <div class="nav">
+      <a class="active" href="shops.html">Shops</a>
+      <a href="order.html">Order</a>
+      <a href="index.html">Dashboard</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="page-header">
+      <div>
+        <div class="eyebrow">Select a Shop</div>
+        <div class="page-title">Choose where your prints will be produced.</div>
+        <div class="subtitle">Tap a shop card to see details, pricing, and place an order.</div>
+      </div>
+    </section>
+
+    <!-- Cards render into this container via ../js/shops.js -->
+    <section class="shops-page">
+      <div class="shop-grid" id="shopGrid" aria-live="polite"></div>
+      <div class="state" id="shopState" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/shops.js"></script>
+</body>
+</html>

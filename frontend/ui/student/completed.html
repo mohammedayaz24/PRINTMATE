@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Completed Orders</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+
+<div class="header">
+  <div class="brand">PrintMate</div>
+  <div class="nav">
+    <a href="shops.html">Shops</a>
+    <a href="order.html">Order</a>
+    <a href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+    <a class="active" href="completed.html">History</a>
+    <a href="profile.html">Profile</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="page-header">
+    <div>
+      <div class="eyebrow">Order History</div>
+      <div class="page-title">Completed and Cancelled</div>
+      <p class="subtitle">Review finished jobs and track any cancelled orders.</p>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="orders.html">Back to Orders</a>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button class="tab active" data-view="completed">Completed and Delivered</button>
+    <button class="tab" data-view="cancelled">Cancelled</button>
+  </div>
+
+  <div id="state" class="state"></div>
+  <div id="historyList" class="list"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  const stateDiv = document.getElementById("state");
+  const historyList = document.getElementById("historyList");
+  const tabs = Array.from(document.querySelectorAll(".tab"));
+
+  let currentView = "completed";
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function renderHistory(orders) {
+    if (!orders.length) {
+      historyList.innerHTML = "";
+      stateDiv.textContent = "No orders in this view.";
+      return;
+    }
+
+    stateDiv.textContent = "";
+    historyList.innerHTML = orders.map(order => {
+      const status = normalizeUpper(order.status) || "UNKNOWN";
+      return `
+        <div class="list-item" onclick="window.location.href='order-detail.html?id=${order.id}'">
+          <div class="list-info">
+            <div class="list-title">Order #${order.id}</div>
+            <div class="list-meta">${formatDate(order.created_at)}</div>
+          </div>
+          <div class="status-pill ${status}">${status.replace(/_/g, " ")}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function loadView(view) {
+    currentView = view;
+    stateDiv.textContent = "Loading...";
+    historyList.innerHTML = "";
+
+    const endpoint = view === "cancelled" ? "/student/orders/cancelled" : "/student/orders/completed";
+
+    api.get(endpoint)
+      .then(res => {
+        const orders = Array.isArray(res.data) ? res.data : (res.data.orders || []);
+        renderHistory(orders);
+      })
+      .catch(() => {
+        stateDiv.textContent = "Failed to load history.";
+      });
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(btn => btn.classList.toggle("active", btn === tab));
+      loadView(tab.dataset.view);
+    });
+  });
+
+  loadView("completed");
+</script>
+
+</body>
+</html>

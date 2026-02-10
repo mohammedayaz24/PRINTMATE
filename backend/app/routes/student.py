@@ -177,7 +177,7 @@ def cancel_order(
 
 
 # =====================================================
-# 4️⃣ UPLOAD DOCUMENT
+# 4️⃣ UPLOAD DOCUMENT (MOCK STORAGE)
 # =====================================================
 @router.post("/orders/{order_id}/upload")
 async def upload_document(
@@ -200,9 +200,9 @@ async def upload_document(
         buffer = BytesIO()
         image.convert("RGB").save(buffer, format="PDF")
         buffer.seek(0)
-        pdf_bytes = buffer.read()
+        _ = buffer.read()
     else:
-        pdf_bytes = await file.read()
+        _ = await file.read()
 
     with engine.connect() as connection:
 
@@ -222,6 +222,7 @@ async def upload_document(
         if order.status != "PENDING":
             raise HTTPException(400, "Upload allowed only in PENDING state")
 
+        # Mock storage URL (kept per MVP requirement).
         file_url = f"https://mock-storage/printmate/{order_id}/{file.filename}"
 
         doc = connection.execute(
@@ -375,7 +376,7 @@ def get_student_order_detail(
 
         documents = connection.execute(
             text("""
-                SELECT id, original_filename, uploaded_at
+                SELECT id, original_filename, file_url, uploaded_at
                 FROM order_documents
                 WHERE order_id = :id
             """),

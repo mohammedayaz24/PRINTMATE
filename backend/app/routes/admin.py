@@ -11,25 +11,37 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 @router.get("/orders")
 def get_orders(auth=Depends(require_admin)):
     """
-    SUPER_ADMIN → all orders
-    ADMIN → only their shop orders
+    SUPER_ADMIN ? all orders
+    ADMIN ? only their shop orders
+    """
+
+    base_query = """
+        SELECT
+            o.*,
+            po.page_ranges,
+            po.color_mode,
+            po.side_mode,
+            po.orientation,
+            po.binding,
+            po.copies,
+            doc.original_filename AS document_name,
+            doc.file_url AS document_url
+        FROM orders o
+        LEFT JOIN print_options po ON po.order_id = o.id
+        LEFT JOIN LATERAL (
+            SELECT od.original_filename, od.file_url
+            FROM order_documents od
+            WHERE od.order_id = o.id
+            ORDER BY od.uploaded_at DESC
+            LIMIT 1
+        ) doc ON TRUE
     """
 
     if auth["role"] == "SUPER_ADMIN":
-        query = text("""
-            SELECT *
-            FROM orders
-            ORDER BY created_at DESC
-        """)
+        query = text(base_query + " ORDER BY o.created_at DESC")
         params = {}
-
-    else:  # ADMIN
-        query = text("""
-            SELECT *
-            FROM orders
-            WHERE shop_id = :shop_id
-            ORDER BY created_at DESC
-        """)
+    else:
+        query = text(base_query + " WHERE o.shop_id = :shop_id ORDER BY o.created_at DESC")
         params = {"shop_id": auth["shop_id"]}
 
     with engine.connect() as connection:
@@ -44,26 +56,35 @@ def orders_by_status(status: str, auth=Depends(require_admin)):
     if status not in ["PENDING", "IN_PROGRESS", "COMPLETED", "DELIVERED"]:
         raise HTTPException(400, "Invalid status")
 
-    if auth["role"] == "SUPER_ADMIN":
-        query = text("""
-            SELECT *
-            FROM orders
-            WHERE status = :status
-            ORDER BY created_at DESC
-        """)
-        params = {"status": status}
+    base_query = """
+        SELECT
+            o.*,
+            po.page_ranges,
+            po.color_mode,
+            po.side_mode,
+            po.orientation,
+            po.binding,
+            po.copies,
+            doc.original_filename AS document_name,
+            doc.file_url AS document_url
+        FROM orders o
+        LEFT JOIN print_options po ON po.order_id = o.id
+        LEFT JOIN LATERAL (
+            SELECT od.original_filename, od.file_url
+            FROM order_documents od
+            WHERE od.order_id = o.id
+            ORDER BY od.uploaded_at DESC
+            LIMIT 1
+        ) doc ON TRUE
+        WHERE o.status = :status
+    """
 
+    if auth["role"] == "SUPER_ADMIN":
+        query = text(base_query + " ORDER BY o.created_at DESC")
+        params = {"status": status}
     else:
-        query = text("""
-            SELECT *
-            FROM orders
-            WHERE status = :status AND shop_id = :shop_id
-            ORDER BY created_at DESC
-        """)
-        params = {
-            "status": status,
-            "shop_id": auth["shop_id"]
-        }
+        query = text(base_query + " AND o.shop_id = :shop_id ORDER BY o.created_at DESC")
+        params = {"status": status, "shop_id": auth["shop_id"]}
 
     with engine.connect() as connection:
         result = connection.execute(query, params)

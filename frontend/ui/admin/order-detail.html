@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate Admin - Order Detail</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="admin">
+
+<div class="header">
+  <div class="brand">PrintMate Admin</div>
+  <div class="nav">
+    <a href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="page-header">
+    <div>
+      <div class="eyebrow">Order Detail</div>
+      <div class="page-title" id="orderTitle">Order</div>
+      <div class="subtitle" id="orderSubtitle">Loading order data...</div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="refreshBtn">Refresh</button>
+      <a class="btn primary" href="orders.html">Back to Orders</a>
+    </div>
+  </section>
+
+  <div id="state" class="state"></div>
+
+  <section class="grid-2">
+    <div class="panel">
+      <div>
+        <div class="panel-title">Order Overview</div>
+        <div class="panel-subtitle">Current status and job details</div>
+      </div>
+      <div class="info-grid" id="orderInfo"></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <div class="panel-title">Actions</div>
+        <div class="panel-subtitle" id="actionSubtitle">Use only valid transitions</div>
+      </div>
+      <div class="action-stack">
+        <button class="btn primary" id="startBtn">Start Printing</button>
+        <button class="btn primary" id="completeBtn">Mark Completed</button>
+        <button class="btn primary" id="deliverBtn">Mark Delivered</button>
+        <button class="btn ghost" id="finalizeBtn">Finalize Cost</button>
+        <div class="action-row">
+          <select id="paymentMode">
+            <option value="CASH">Cash</option>
+            <option value="UPI">UPI</option>
+          </select>
+          <button class="btn ghost" id="payBtn">Mark Paid</button>
+        </div>
+        <div class="note" id="actionNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div>
+      <div class="panel-title">Invoice</div>
+      <div class="panel-subtitle">Generated after payment</div>
+    </div>
+    <div class="info-grid" id="invoiceInfo"></div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get("id");
+
+  const stateDiv = document.getElementById("state");
+  const orderTitle = document.getElementById("orderTitle");
+  const orderSubtitle = document.getElementById("orderSubtitle");
+  const orderInfo = document.getElementById("orderInfo");
+  const invoiceInfo = document.getElementById("invoiceInfo");
+  const actionNote = document.getElementById("actionNote");
+
+  const startBtn = document.getElementById("startBtn");
+  const completeBtn = document.getElementById("completeBtn");
+  const deliverBtn = document.getElementById("deliverBtn");
+  const finalizeBtn = document.getElementById("finalizeBtn");
+  const payBtn = document.getElementById("payBtn");
+  const paymentMode = document.getElementById("paymentMode");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  let currentOrder = null;
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function formatCurrency(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value);
+    try {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0
+      }).format(numeric);
+    } catch (err) {
+      return "INR " + numeric;
+    }
+  }
+
+  function renderInfo(container, items) {
+    container.innerHTML = items.map(item => {
+      return `
+        <div class="info-card">
+          <div class="info-label">${item.label}</div>
+          <div class="info-value">${item.value}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function updateActions(order) {
+    const status = normalizeUpper(order.status);
+    const payment = normalizeUpper(order.payment_status);
+
+    startBtn.style.display = status === "PENDING" ? "inline-flex" : "none";
+    completeBtn.style.display = status === "IN_PROGRESS" ? "inline-flex" : "none";
+    deliverBtn.style.display = status === "COMPLETED" && payment === "PAID" ? "inline-flex" : "none";
+    finalizeBtn.style.display = status === "PENDING" && payment !== "PAID" && (order.final_cost === null || order.final_cost === undefined) ? "inline-flex" : "none";
+    payBtn.style.display = payment !== "PAID" && order.final_cost !== null && order.final_cost !== undefined ? "inline-flex" : "none";
+
+    if (status === "COMPLETED" && payment !== "PAID") {
+      actionNote.textContent = "Mark payment before delivery is allowed.";
+    } else if (status === "PENDING") {
+      actionNote.textContent = "You can start printing or finalize cost.";
+    } else if (status === "IN_PROGRESS") {
+      actionNote.textContent = "Complete the job when printing finishes.";
+    } else {
+      actionNote.textContent = "";
+    }
+  }
+
+  function renderOrder(order) {
+    const status = normalizeUpper(order.status) || "UNKNOWN";
+    const payment = normalizeUpper(order.payment_status) || "UNKNOWN";
+
+    orderTitle.textContent = "Order #" + order.id;
+    orderSubtitle.textContent = status.replace(/_/g, " ") + " | " + payment.replace(/_/g, " ");
+
+    const items = [
+      { label: "Status", value: `<span class=\"status-pill ${status}\">${status.replace(/_/g, " ")}</span>` },
+      { label: "Payment", value: `<span class=\"payment-pill ${payment}\">${payment}</span>` },
+      { label: "Student ID", value: order.student_id ?? "-" },
+      { label: "Shop ID", value: order.shop_id ?? "-" },
+      { label: "Pages", value: order.total_pages ?? "-" },
+      { label: "Estimated Cost", value: formatCurrency(order.estimated_cost) },
+      { label: "Final Cost", value: formatCurrency(order.final_cost) },
+      { label: "Created", value: formatDate(order.created_at) },
+      { label: "Ready Time", value: formatDate(order.estimated_ready_time) },
+      { label: "Paid At", value: formatDate(order.paid_at) }
+    ];
+
+    renderInfo(orderInfo, items);
+    updateActions(order);
+  }
+
+  function renderInvoice(invoice) {
+    if (!invoice) {
+      invoiceInfo.innerHTML = "<div class=\"panel-subtitle\">No invoice created yet.</div>";
+      return;
+    }
+
+    const items = [
+      { label: "Invoice", value: invoice.invoice_number ?? "-" },
+      { label: "Subtotal", value: formatCurrency(invoice.subtotal) },
+      { label: "Tax", value: formatCurrency(invoice.tax) },
+      { label: "Total", value: formatCurrency(invoice.total) },
+      { label: "Generated", value: formatDate(invoice.generated_at) },
+      { label: "Payment Mode", value: invoice.payment_mode ?? "-" }
+    ];
+
+    renderInfo(invoiceInfo, items);
+  }
+
+  function loadInvoice() {
+    invoiceInfo.innerHTML = "<div class=\"panel-subtitle\">Loading invoice...</div>";
+    adminApi.get(`/orders/${orderId}/invoice`)
+      .then(res => {
+        renderInvoice(res.data);
+      })
+      .catch(() => {
+        renderInvoice(null);
+      });
+  }
+
+  function loadOrder() {
+    if (!orderId) {
+      stateDiv.textContent = "Missing order id.";
+      return;
+    }
+
+    stateDiv.textContent = "Loading order...";
+    adminApi.get("/admin/orders")
+      .then(res => {
+        const orders = Array.isArray(res.data) ? res.data : [];
+        currentOrder = orders.find(order => String(order.id) === String(orderId));
+        if (!currentOrder) {
+          stateDiv.textContent = "Order not found.";
+          orderInfo.innerHTML = "";
+          return;
+        }
+        stateDiv.textContent = "";
+        renderOrder(currentOrder);
+        loadInvoice();
+      })
+      .catch(() => {
+        stateDiv.textContent = "Failed to load order.";
+        orderInfo.innerHTML = "";
+      });
+  }
+
+  function updateStatus(status) {
+    if (!orderId) return;
+    adminApi.patch(`/orders/${orderId}/status`, { status })
+      .then(() => loadOrder())
+      .catch(() => {
+        actionNote.textContent = "Failed to update status.";
+      });
+  }
+
+  function finalizeCost() {
+    if (!orderId) return;
+    adminApi.post(`/orders/${orderId}/finalize-cost`)
+      .then(() => loadOrder())
+      .catch(() => {
+        actionNote.textContent = "Failed to finalize cost.";
+      });
+  }
+
+  function markPaid() {
+    if (!orderId) return;
+    adminApi.patch(`/orders/${orderId}/pay`, { payment_mode: paymentMode.value })
+      .then(() => {
+        loadOrder();
+      })
+      .catch(() => {
+        actionNote.textContent = "Failed to mark paid.";
+      });
+  }
+
+  startBtn.addEventListener("click", () => updateStatus("IN_PROGRESS"));
+  completeBtn.addEventListener("click", () => updateStatus("COMPLETED"));
+  deliverBtn.addEventListener("click", () => updateStatus("DELIVERED"));
+  finalizeBtn.addEventListener("click", finalizeCost);
+  payBtn.addEventListener("click", markPaid);
+  refreshBtn.addEventListener("click", loadOrder);
+
+  loadOrder();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,514 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Landing</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Sora', sans-serif;
+      background: #f3f6fb;
+      color: #0f172a;
+    }
+    .hero-section {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      background: linear-gradient(120deg, #2563eb 60%, #60a5fa 100%);
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: url('https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat;
+      opacity: 0.18;
+      z-index: 1;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 600px;
+      padding: 80px 40px 80px 80px;
+      color: #fff;
+    }
+    .eyebrow {
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 1rem;
+      margin-bottom: 18px;
+      color: #c7d2fe;
+    }
+    .hero-title {
+      font-size: 3.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 18px;
+      color: #fff;
+      text-shadow: 0 2px 24px rgba(37,99,235,0.18);
+    }
+    .hero-subtitle {
+      font-size: 1.25rem;
+      max-width: 480px;
+      margin-bottom: 36px;
+      color: #e0e7ff;
+    }
+    .hero-card {
+      position: absolute;
+      right: 8vw;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 12px 48px rgba(15,23,42,0.18);
+      width: 420px;
+      min-height: 260px;
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 2;
+      animation: floatCard 4.5s ease-in-out infinite;
+    }
+    @keyframes floatCard {
+      0%, 100% { transform: translateY(-50%) translateY(0) scale(1); box-shadow: 0 12px 48px rgba(15,23,42,0.18); }
+      50% { transform: translateY(-50%) translateY(-18px) scale(1.025); box-shadow: 0 24px 64px rgba(37,99,235,0.18); }
+    }
+    .hero-card .card-img {
+      width: 56px;
+      height: 56px;
+      background: #2563eb;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      animation: pulseImg 2.2s infinite cubic-bezier(.4,0,.6,1);
+    }
+    @keyframes pulseImg {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.18); }
+      50% { box-shadow: 0 0 0 12px rgba(37,99,235,0.10); }
+    }
+    .hero-card .card-line {
+      height: 12px;
+      background: #e0e7ff;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .hero-card .card-line.short {
+      width: 60%;
+    }
+    .hero-card .card-line:last-child {
+      margin-bottom: 0;
+    }
+    .hero-cta {
+      background: #fff;
+      color: #2563eb;
+      font-weight: 700;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 999px;
+      padding: 16px 38px;
+      box-shadow: 0 2px 16px rgba(37,99,235,0.08);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      margin-top: 18px;
+    }
+    .hero-cta:hover {
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 4px 32px rgba(37,99,235,0.18);
+    }
+    @media (max-width: 1100px) {
+      .hero-card {
+        position: static;
+        transform: none;
+        margin: 40px auto 0;
+      }
+      .hero-section {
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 700px;
+      }
+    }
+    @media (max-width: 700px) {
+      .hero-content {
+        padding: 48px 16px 32px 16px;
+      }
+      .hero-title {
+        font-size: 2.1rem;
+      }
+      .hero-card {
+        width: 98vw;
+        min-width: unset;
+        padding: 24px 10px;
+      }
+    }
+    /* Footer styles */
+    .footer {
+      background: #1e293b;
+      color: #cbd5e1;
+      padding: 48px 0 0 0;
+      margin-top: 64px;
+    }
+    .footer .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 32px;
+    }
+    .footer-grid {
+      display: flex;
+      gap: 64px;
+      flex-wrap: wrap;
+    }
+    .footer .brand {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .footer .panel-title {
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 8px;
+    }
+    .footer .subtitle {
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+    .footer a {
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer a:hover {
+      color: #60a5fa;
+      text-decoration: underline;
+    }
+    .footer-note {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.95rem;
+      margin: 32px 0 0 0;
+      padding-bottom: 18px;
+    }
+
+    
+
+    .card-3d.secondary {
+      transform: translateZ(-40px) rotateY(-deg);
+      opacity: 0.6;
+      animation-delay: -2s;
+    }
+
+    .card-3d.tertiary {
+      transform: translateZ(-80px) rotateY(-14deg);
+      opacity: 0.35;
+      animation-delay: -4s;
+    }
+
+    .card-body {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+      background: rgba(29, 78, 216, 0.1);
+      padding: 6px 10px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+
+    .card-lines {
+      display: grid;
+      gap: 8px;
+    }
+
+    .line {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(15, 118, 110, 0.2), rgba(14, 165, 233, 0.18));
+    }
+
+    .line.short {
+      width: 60%;
+    }
+
+    .card-preview {
+      height: 140px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(29, 78, 216, 0.2), rgba(14, 165, 233, 0.3));
+      border: 1px solid rgba(29, 78, 216, 0.2);
+      background-size: 200% 200%;
+      animation: shimmer 6s ease infinite;
+    }
+
+    @keyframes tilt {
+      0%, 100% { transform: rotateY(-6deg) rotateX(6deg) translateZ(0); }
+      50% { transform: rotateY(6deg) rotateX(-6deg) translateZ(10px); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @media (max-width: 900px) {
+      .stack {
+        margin: 20px auto 0;
+      }
+    }
+
+    .printer-wrap {
+      margin: 20px auto 0;
+      max-width: 420px;
+      text-align: center;
+    }
+    .printer-top {
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      font-size: 12px;
+      color: #1d4ed8;
+      margin-bottom: 8px;
+    }
+    .printer-body {
+      height: 90px;
+      background: #0f172a;
+      border-radius: 18px;
+      position: relative;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.3);
+    }
+    .printer-slot {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 12px;
+      border-radius: 999px;
+      background: #1f2937;
+    }
+    .printer-pages {
+      position: relative;
+      height: 160px;
+      overflow: hidden;
+      margin-top: -10px;
+    }
+    .printer-pages .page {
+      position: absolute;
+      left: 50%;
+      width: 200px;
+      height: 140px;
+      border-radius: 12px;
+      background: rgb(255, 255, 255);
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      transform: translateX(-50%);
+      animation: print 3.6s linear infinite;
+    }
+    .printer-pages .page:nth-child(2) {
+      animation-delay: 1.2s;
+      opacity: 0.8;
+    }
+    .printer-pages .page:nth-child(3) {
+      animation-delay: 2.4s;
+      opacity: 0.6;
+    }
+    .printer-pages .page::after {
+      content: "PRINTMATE";
+      position: absolute;
+      top: 20px;
+      left: 24px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: rgba(0, 0, 0, 1);
+      font-size: 12px;
+    }
+    @keyframes print {
+      0% { transform: translate(-50%, -140px); opacity: 0; }
+      10% { opacity: 1; }
+      100% { transform: translate(-50%, 120px); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="student">
+  <section class="hero-section">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="eyebrow">CAMPUS PRINT STUDIO</div>
+      <h1 class="hero-title">PrintMate brings your print studio to life</h1>
+      <p class="hero-subtitle">Connect with local print shops on campus. Upload your documents, choose your preferred shop, and get your prints delivered – all in one seamless experience.</p>
+      <button class="hero-cta" id="selectShops">Explore Shops &rarr;</button>
+    </div>
+    <div class="hero-card">
+      <div class="card-img"></div>
+      <div class="card-line"></div>
+      <div class="card-line short"></div>
+      <div class="card-line"></div>
+      <div class="card-line"></div>
+    </div>
+  </section>
+
+  <section class="flow-section">
+    <div class="container">
+      <div class="printer-wrap">
+        <div class="printer-top">PRINTMATE</div>
+        <div class="printer-body">
+          <div class="printer-slot"></div>
+        </div>
+        <div class="printer-pages">
+          <div class="page"></div>
+          <div class="page"></div>
+          <div class="page"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="flow-section">
+    <div class="container">
+      <div class="flow-steps">
+        <div class="flow-step animate">
+          <div class="flow-icon" style="background:#2563eb1a;"><svg width="32" height="32" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 2v4m8-4v4M3 10h18"/></svg></div>
+          <div class="flow-title">Upload</div>
+          <div class="flow-desc">Upload your document in seconds.</div>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-step animate" style="animation-delay:0.3s;">
+          <div class="flow-icon" style="background:#22d3ee1a;"><svg width="32" height="32" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+          <div class="flow-title">Select Preferences</div>
+          <div class="flow-desc">Choose print options and shop.</div>
+        </div>
+        <div class="flow-arrow"></div>
+        <div class="flow-step animate" style="animation-delay:0.6s;">
+          <div class="flow-icon" style="background:#a7f3d01a;"><svg width="32" height="32" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4M8 3v4m-5 4h18"/></svg></div>
+          <div class="flow-title">Get Your Print</div>
+          <div class="flow-desc">Collect or receive your printout.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <style>
+    .flow-steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0px;
+      margin: 64px 0 32px 0;
+      flex-wrap: wrap;
+    }
+    .flow-step {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px #2563eb0a;
+      padding: 32px 28px 24px 28px;
+      margin: 0 8px;
+      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0;
+      transform: translateY(40px) scale(0.98);
+      animation: stepIn 0.7s cubic-bezier(.4,0,.6,1) forwards;
+    }
+    .flow-step.animate { animation-play-state: running; }
+    .flow-step .flow-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px #2563eb0a;
+    }
+    .flow-title {
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 6px;
+      color: #2563eb;
+    }
+    .flow-desc {
+      color: #334155;
+      font-size: 1rem;
+      text-align: center;
+      max-width: 180px;
+    }
+    .flow-arrow {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .flow-arrow::after {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 4px;
+      background: linear-gradient(90deg, #2563eb 60%, #60a5fa 100%);
+      border-radius: 2px;
+      margin: 0 4px;
+      transform: rotate(20deg);
+    }
+    @keyframes stepIn {
+      0% { opacity: 0; transform: translateY(40px) scale(0.98); }
+      80% { opacity: 1; transform: translateY(-6px) scale(1.03); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (max-width: 900px) {
+      .flow-steps { flex-direction: column; gap: 24px; }
+      .flow-arrow { display: none; }
+    }
+  </style>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="brand">PrintMate</div>
+          <p class="subtitle">The fastest way to send files from class to the print counter.</p>
+          <p class="subtitle">Contact: <a href="mailto:printmate.support@gmail.com">printmate.support@gmail.com</a></p>
+        </div>
+        <div>
+          <div class="panel-title">Navigate</div>
+          <p class="subtitle"><a href="landing.html">Landing</a></p>
+          <p class="subtitle"><a href="shops.html">Shops</a></p>
+          <p class="subtitle"><a href="order.html">Order</a></p>
+        </div>
+        <div>
+          <div class="panel-title">Account</div>
+          <p class="subtitle"><a href="index.html">Dashboard</a></p>
+          <p class="subtitle"><a href="orders.html">Orders</a></p>
+          <p class="subtitle"><a href="profile.html">Profile</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="footer-note">© 2026 PrintMate MVP</div>
+  </footer>
+
+  <script src="../js/landing.js"></script>
+</body>
+</html>

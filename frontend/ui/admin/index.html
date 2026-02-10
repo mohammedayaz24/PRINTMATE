@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate Admin - Dashboard</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="admin">
+
+<div class="header">
+  <div class="brand">PrintMate Admin</div>
+  <div class="nav">
+    <a class="active" href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Admin Dashboard</div>
+      <div class="title">Production Overview</div>
+      <p class="subtitle">Monitor active prints, recent orders, and revenue snapshots without leaving the dashboard.</p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="refreshBtn">Refresh</button>
+      <a class="btn primary" href="orders.html">View All Orders</a>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Orders</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-meta" id="statUpdated">Updated -</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="statPending">0</div>
+      <div class="stat-meta">Waiting to start</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">In Progress</div>
+      <div class="stat-value" id="statInProgress">0</div>
+      <div class="stat-meta">Printing now</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value" id="statCompleted">0</div>
+      <div class="stat-meta">Ready for pickup</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Delivered</div>
+      <div class="stat-value" id="statDelivered">0</div>
+      <div class="stat-meta">Closed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unpaid</div>
+      <div class="stat-value" id="statUnpaid">0</div>
+      <div class="stat-meta">Needs payment</div>
+    </div>
+  </section>
+
+  <div id="state" class="state"></div>
+
+  <section class="grid-2">
+    <div class="panel">
+      <div>
+        <div class="panel-title">Active Print Queue</div>
+        <div class="panel-subtitle">Orders currently in progress</div>
+      </div>
+      <div class="list" id="queueList"></div>
+    </div>
+    <div class="panel">
+      <div>
+        <div class="panel-title">Recent Orders</div>
+        <div class="panel-subtitle">Latest jobs created across the shop</div>
+      </div>
+      <div class="list" id="recentList"></div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 18px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div>
+        <div class="panel-title">Revenue Analytics</div>
+        <div class="panel-subtitle" id="analyticsSubtitle">Weekly overview</div>
+      </div>
+      <div class="range-buttons" id="rangeButtons">
+        <button data-range="daily">Daily</button>
+        <button data-range="weekly" class="active">Weekly</button>
+        <button data-range="monthly">Monthly</button>
+      </div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Period</th>
+          <th>Total Orders</th>
+          <th>Revenue</th>
+        </tr>
+      </thead>
+      <tbody id="analyticsBody"></tbody>
+    </table>
+    <div class="panel-subtitle" id="analyticsState"></div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  const stateDiv = document.getElementById("state");
+  const queueList = document.getElementById("queueList");
+  const recentList = document.getElementById("recentList");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  const statTotal = document.getElementById("statTotal");
+  const statPending = document.getElementById("statPending");
+  const statInProgress = document.getElementById("statInProgress");
+  const statCompleted = document.getElementById("statCompleted");
+  const statDelivered = document.getElementById("statDelivered");
+  const statUnpaid = document.getElementById("statUnpaid");
+  const statUpdated = document.getElementById("statUpdated");
+
+  const analyticsBody = document.getElementById("analyticsBody");
+  const analyticsState = document.getElementById("analyticsState");
+  const analyticsSubtitle = document.getElementById("analyticsSubtitle");
+  const rangeButtons = Array.from(document.querySelectorAll("#rangeButtons button"));
+
+  let allOrders = [];
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function toTime(value) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function formatCurrency(value) {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value ?? "-");
+    try {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0
+      }).format(numeric);
+    } catch (err) {
+      return "INR " + numeric;
+    }
+  }
+
+  function updateStats() {
+    const counts = {
+      total: allOrders.length,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      delivered: 0,
+      unpaid: 0
+    };
+
+    allOrders.forEach(order => {
+      const status = normalizeUpper(order.status);
+      const payment = normalizeUpper(order.payment_status);
+
+      if (status === "PENDING") counts.pending += 1;
+      if (status === "IN_PROGRESS") counts.inProgress += 1;
+      if (status === "COMPLETED") counts.completed += 1;
+      if (status === "DELIVERED") counts.delivered += 1;
+      if (payment === "UNPAID") counts.unpaid += 1;
+    });
+
+    statTotal.textContent = counts.total;
+    statPending.textContent = counts.pending;
+    statInProgress.textContent = counts.inProgress;
+    statCompleted.textContent = counts.completed;
+    statDelivered.textContent = counts.delivered;
+    statUnpaid.textContent = counts.unpaid;
+
+    statUpdated.textContent = "Updated " + new Date().toLocaleString();
+  }
+
+  function renderQueue() {
+    const inProgress = allOrders
+      .filter(order => normalizeUpper(order.status) === "IN_PROGRESS")
+      .sort((a, b) => toTime(a.created_at) - toTime(b.created_at))
+      .slice(0, 6);
+
+    if (!inProgress.length) {
+      queueList.innerHTML = "<div class=\"panel-subtitle\">No active orders right now.</div>";
+      return;
+    }
+
+    queueList.innerHTML = inProgress.map(order => {
+      return `
+        <div class="list-item">
+          <div class="list-info">
+            <div class="list-title">Order #${order.id}</div>
+            <div class="list-meta">Pages ${order.total_pages ?? "-"} | Created ${formatDate(order.created_at)}</div>
+          </div>
+          <div class="status-pill IN_PROGRESS">In Progress</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderRecent() {
+    const recent = [...allOrders]
+      .sort((a, b) => toTime(b.created_at) - toTime(a.created_at))
+      .slice(0, 6);
+
+    if (!recent.length) {
+      recentList.innerHTML = "<div class=\"panel-subtitle\">No recent orders yet.</div>";
+      return;
+    }
+
+    recentList.innerHTML = recent.map(order => {
+      const status = normalizeUpper(order.status) || "UNKNOWN";
+      return `
+        <div class="list-item" onclick="window.location.href='order-detail.html?id=${order.id}'">
+          <div class="list-info">
+            <div class="list-title">Order #${order.id}</div>
+            <div class="list-meta">${order.student_id ?? "-"} | ${formatDate(order.created_at)}</div>
+          </div>
+          <div class="status-pill ${status}">${status.replace(/_/g, " ")}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderAnalytics(rows) {
+    if (!rows.length) {
+      analyticsBody.innerHTML = "";
+      analyticsState.textContent = "No analytics data for this range.";
+      return;
+    }
+
+    analyticsState.textContent = "";
+    analyticsBody.innerHTML = rows.slice(0, 8).map(row => {
+      return `
+        <tr>
+          <td>${row.period}</td>
+          <td>${row.total_orders}</td>
+          <td>${formatCurrency(row.total_revenue || 0)}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function loadAnalytics(range) {
+    analyticsState.textContent = "Loading analytics...";
+    adminApi.get(`/admin/analytics/${range}`)
+      .then(res => {
+        const rows = Array.isArray(res.data.data) ? res.data.data : [];
+        analyticsSubtitle.textContent = range.charAt(0).toUpperCase() + range.slice(1) + " overview";
+        renderAnalytics(rows);
+      })
+      .catch(() => {
+        analyticsBody.innerHTML = "";
+        analyticsState.textContent = "Failed to load analytics.";
+      });
+  }
+
+  function loadDashboard() {
+    stateDiv.textContent = "Loading dashboard...";
+    adminApi.get("/admin/orders")
+      .then(res => {
+        allOrders = Array.isArray(res.data) ? res.data : [];
+        updateStats();
+        renderQueue();
+        renderRecent();
+        stateDiv.textContent = allOrders.length ? "" : "No orders found yet.";
+      })
+      .catch(() => {
+        allOrders = [];
+        updateStats();
+        queueList.innerHTML = "";
+        recentList.innerHTML = "";
+        stateDiv.textContent = "Failed to load dashboard.";
+      });
+  }
+
+  rangeButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      rangeButtons.forEach(btn => btn.classList.toggle("active", btn === button));
+      loadAnalytics(button.dataset.range);
+    });
+  });
+
+  refreshBtn.addEventListener("click", () => {
+    loadDashboard();
+    const activeButton = rangeButtons.find(btn => btn.classList.contains("active"));
+    loadAnalytics(activeButton ? activeButton.dataset.range : "weekly");
+  });
+
+  loadDashboard();
+  loadAnalytics("weekly");
+</script>
+
+</body>
+</html>

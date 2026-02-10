@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Order Detail</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="student">
+
+<div class="header">
+  <div class="brand">PrintMate</div>
+  <div class="nav">
+    <a href="shops.html">Shops</a>
+    <a href="order.html">Order</a>
+    <a href="index.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+    <a href="completed.html">History</a>
+    <a href="profile.html">Profile</a>
+  </div>
+</div>
+
+<div class="container">
+  <section class="page-header">
+    <div>
+      <div class="eyebrow">Order Detail</div>
+      <div class="page-title" id="orderTitle">Order</div>
+      <div class="subtitle" id="orderSubtitle">Loading order data...</div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="refreshBtn">Refresh</button>
+      <a class="btn primary" href="orders.html">Back to Orders</a>
+    </div>
+  </section>
+
+  <div id="state" class="state"></div>
+
+  <section class="grid-2">
+    <div class="panel">
+      <div>
+        <div class="panel-title">Order Overview</div>
+        <div class="panel-subtitle">Status, payment, and cost details</div>
+      </div>
+      <div class="info-grid" id="orderInfo"></div>
+      <button class="btn ghost" id="cancelBtn">Cancel Order</button>
+    </div>
+
+    <div class="panel">
+      <div>
+        <div class="panel-title">Print Options</div>
+        <div class="panel-subtitle" id="optionsSubtitle">Editable while the order is pending</div>
+      </div>
+      <form id="optionsForm">
+        <div>
+          <label for="pageRanges">Page ranges</label>
+          <input id="pageRanges" type="text" placeholder="1-10, 15, 18-20" />
+        </div>
+        <div class="inline">
+          <div>
+            <label for="colorMode">Color mode</label>
+            <select id="colorMode">
+              <option value="BW">Black and white</option>
+              <option value="COLOR">Color</option>
+            </select>
+          </div>
+          <div>
+            <label for="sideMode">Side mode</label>
+            <select id="sideMode">
+              <option value="SINGLE">Single</option>
+              <option value="DOUBLE">Double</option>
+            </select>
+          </div>
+        </div>
+        <div class="inline">
+          <div>
+            <label for="orientation">Orientation</label>
+            <select id="orientation">
+              <option value="PORTRAIT">Portrait</option>
+              <option value="LANDSCAPE">Landscape</option>
+            </select>
+          </div>
+          <div>
+            <label for="binding">Binding</label>
+            <select id="binding">
+              <option value="NONE">None</option>
+              <option value="SPIRAL">Spiral</option>
+            </select>
+          </div>
+          <div>
+            <label for="copies">Copies</label>
+            <input id="copies" type="number" min="1" max="10" value="1" />
+          </div>
+        </div>
+        <button class="btn primary" type="submit">Save Print Options</button>
+        <div class="panel-subtitle" id="optionsState"></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <div>
+        <div class="panel-title">Documents</div>
+        <div class="panel-subtitle">Uploads are stored locally on the server.</div>
+      </div>
+      <form id="uploadForm">
+        <input id="uploadFile" type="file" accept="application/pdf,image/png,image/jpeg" />
+        <button class="btn primary" type="submit">Upload Document</button>
+        <div class="panel-subtitle" id="uploadState"></div>
+      </form>
+      <div class="list" id="documentsList"></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <div class="panel-title">Invoice</div>
+        <div class="panel-subtitle">Available after payment</div>
+      </div>
+      <div class="info-grid" id="invoiceInfo"></div>
+      <button class="btn ghost" id="invoiceBtn">Load Invoice</button>
+      <div class="panel-subtitle" id="invoiceState"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get("id");
+  const uploadBaseUrl = "http://127.0.0.1:8000";
+
+  const orderTitle = document.getElementById("orderTitle");
+  const orderSubtitle = document.getElementById("orderSubtitle");
+  const orderInfo = document.getElementById("orderInfo");
+  const documentsList = document.getElementById("documentsList");
+  const invoiceInfo = document.getElementById("invoiceInfo");
+  const invoiceState = document.getElementById("invoiceState");
+  const optionsState = document.getElementById("optionsState");
+  const uploadState = document.getElementById("uploadState");
+  const stateDiv = document.getElementById("state");
+
+  const cancelBtn = document.getElementById("cancelBtn");
+  const refreshBtn = document.getElementById("refreshBtn");
+  const invoiceBtn = document.getElementById("invoiceBtn");
+
+  const optionsForm = document.getElementById("optionsForm");
+  const uploadForm = document.getElementById("uploadForm");
+
+  const pageRanges = document.getElementById("pageRanges");
+  const colorMode = document.getElementById("colorMode");
+  const sideMode = document.getElementById("sideMode");
+  const orientation = document.getElementById("orientation");
+  const binding = document.getElementById("binding");
+  const copies = document.getElementById("copies");
+  const uploadFile = document.getElementById("uploadFile");
+
+  let currentOrder = null;
+
+  function normalize(value) {
+    return (value || "").toString().trim();
+  }
+
+  function normalizeUpper(value) {
+    return normalize(value).toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function formatCurrency(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value);
+    try {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0
+      }).format(numeric);
+    } catch (err) {
+      return "INR " + numeric;
+    }
+  }
+
+  function renderInfo(container, items) {
+    container.innerHTML = items.map(item => {
+      return `
+        <div class="info-card">
+          <div class="info-label">${item.label}</div>
+          <div class="info-value">${item.value}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderDocuments(docs) {
+    if (!docs.length) {
+      documentsList.innerHTML = "<div class=\"panel-subtitle\">No documents uploaded yet.</div>";
+      return;
+    }
+
+    documentsList.innerHTML = docs.map(doc => {
+      const fileLink = doc.file_url ? `${uploadBaseUrl}${doc.file_url}` : "";
+      const linkMarkup = fileLink ? `<a href=\"${fileLink}\" target=\"_blank\">Open</a>` : "";
+      return `
+        <div class="list-item">
+          <div class="list-info">
+            <div class="list-title">${doc.original_filename}</div>
+            <div class="list-meta">Uploaded ${formatDate(doc.uploaded_at)}</div>
+          </div>
+          <div class="list-meta">${linkMarkup}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderInvoice(invoice) {
+    if (!invoice) {
+      invoiceInfo.innerHTML = "<div class=\"panel-subtitle\">No invoice created yet.</div>";
+      return;
+    }
+
+    const items = [
+      { label: "Invoice", value: invoice.invoice_number ?? "-" },
+      { label: "Subtotal", value: formatCurrency(invoice.subtotal) },
+      { label: "Tax", value: formatCurrency(invoice.tax) },
+      { label: "Total", value: formatCurrency(invoice.total) },
+      { label: "Paid At", value: formatDate(invoice.paid_at) },
+      { label: "Payment Mode", value: invoice.payment_mode ?? "-" }
+    ];
+
+    renderInfo(invoiceInfo, items);
+  }
+
+  function updateFormState(status, paymentStatus) {
+    const isPending = status === "PENDING" && paymentStatus !== "PAID";
+    optionsForm.querySelectorAll("input, select, button").forEach(el => {
+      el.disabled = !isPending;
+    });
+
+    uploadForm.querySelectorAll("input, button").forEach(el => {
+      el.disabled = !isPending;
+    });
+
+    cancelBtn.style.display = status === "PENDING" ? "inline-flex" : "none";
+  }
+
+  function renderOrder(order, printOptions, documents) {
+    const status = normalizeUpper(order.status) || "UNKNOWN";
+    const payment = normalizeUpper(order.payment_status) || "UNKNOWN";
+
+    orderTitle.textContent = "Order #" + order.id;
+    orderSubtitle.textContent = status.replace(/_/g, " ") + " | " + payment.replace(/_/g, " ");
+
+    const items = [
+      { label: "Status", value: `<span class=\"status-pill ${status}\">${status.replace(/_/g, " ")}</span>` },
+      { label: "Payment", value: `<span class=\"payment-pill ${payment}\">${payment}</span>` },
+      { label: "Pages", value: order.total_pages ?? "-" },
+      { label: "Estimated Cost", value: formatCurrency(order.estimated_cost) },
+      { label: "Final Cost", value: formatCurrency(order.final_cost) },
+      { label: "Created", value: formatDate(order.created_at) },
+      { label: "Ready Time", value: formatDate(order.estimated_ready_time) }
+    ];
+
+    renderInfo(orderInfo, items);
+    renderDocuments(documents || []);
+    updateFormState(status, payment);
+
+    if (printOptions) {
+      pageRanges.value = printOptions.page_ranges ?? "";
+      colorMode.value = printOptions.color_mode ?? "BW";
+      sideMode.value = printOptions.side_mode ?? "SINGLE";
+      orientation.value = printOptions.orientation ?? "PORTRAIT";
+      binding.value = printOptions.binding ?? "NONE";
+      copies.value = printOptions.copies ?? 1;
+    }
+  }
+
+  function loadOrder() {
+    if (!orderId) {
+      stateDiv.textContent = "Missing order id.";
+      return;
+    }
+
+    stateDiv.textContent = "Loading order...";
+    api.get(`/student/orders/${orderId}`)
+      .then(res => {
+        stateDiv.textContent = "";
+        currentOrder = res.data.order;
+        renderOrder(res.data.order, res.data.print_options, res.data.documents);
+      })
+      .catch(() => {
+        stateDiv.textContent = "Failed to load order.";
+      });
+  }
+
+  function loadInvoice() {
+    invoiceState.textContent = "Loading invoice...";
+    api.get(`/orders/${orderId}/invoice`)
+      .then(res => {
+        invoiceState.textContent = "";
+        renderInvoice(res.data);
+      })
+      .catch(() => {
+        invoiceState.textContent = "No invoice available.";
+        renderInvoice(null);
+      });
+  }
+
+  optionsForm.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!currentOrder) return;
+
+    const payload = {
+      page_ranges: pageRanges.value.trim(),
+      color_mode: colorMode.value,
+      side_mode: sideMode.value,
+      orientation: orientation.value,
+      binding: binding.value,
+      copies: Number(copies.value) || 1
+    };
+
+    optionsState.textContent = "Saving print options...";
+    api.post(`/student/orders/${orderId}/print-options`, payload)
+      .then(res => {
+        const price = res.data.estimated_cost;
+        optionsState.textContent = price ? "Updated. New estimate: " + formatCurrency(price) : "Options updated.";
+        loadOrder();
+      })
+      .catch(() => {
+        optionsState.textContent = "Failed to update print options.";
+      });
+  });
+
+  uploadForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const file = uploadFile.files[0];
+    if (!file) {
+      uploadState.textContent = "Choose a file first.";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    uploadState.textContent = "Uploading document...";
+    api.post(`/student/orders/${orderId}/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    })
+      .then(() => {
+        uploadState.textContent = "Upload complete.";
+        uploadFile.value = "";
+        loadOrder();
+      })
+      .catch(() => {
+        uploadState.textContent = "Failed to upload document.";
+      });
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    if (!currentOrder) return;
+    api.patch(`/student/orders/${orderId}/cancel`)
+      .then(() => {
+        loadOrder();
+      })
+      .catch(() => {
+        stateDiv.textContent = "Unable to cancel this order.";
+      });
+  });
+
+  refreshBtn.addEventListener("click", loadOrder);
+  invoiceBtn.addEventListener("click", loadInvoice);
+
+  loadOrder();
+</script>
+
+</body>
+</html>

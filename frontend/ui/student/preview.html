@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrintMate - Preview</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <style>
+    .preview-shell {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-view {
+      height: calc(100vh - 240px);
+      min-height: 360px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      overflow: auto;
+    }
+
+    .preview-pages {
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .preview-page-item {
+      display: grid;
+      gap: 10px;
+    }
+
+    .preview-page-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(226, 232, 240, 0.82);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .preview-page-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+    }
+  </style>
+</head>
+<body class="student">
+  <div class="header">
+    <div class="brand">PrintMate</div>
+    <div class="nav">
+      <a href="order.html">Back to Order</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="page-header">
+      <div>
+        <div class="eyebrow">Preview</div>
+        <div class="page-title" id="previewTitle">Document Preview</div>
+        <div class="subtitle" id="previewMeta">Waiting for document from the order page…</div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="downloadBtn" type="button" disabled>Download</button>
+        <button class="btn ghost" id="closeBtn" type="button">Close</button>
+      </div>
+    </section>
+
+    <section class="panel preview-shell">
+      <div class="note loading" id="previewStatus">Waiting…</div>
+      <div class="preview-view">
+        <div class="preview-pages" id="pages"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="../vendor/pdfjs/pdf.min.js"></script>
+  <script src="../js/preview.js"></script>
+</body>
+</html>
+

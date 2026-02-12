@@ -62,9 +62,9 @@
     <section class="panel">
       <div>
         <div class="panel-title">Step 1: Upload Document</div>
-        <div class="panel-subtitle">PDFs and images supported. We count pages automatically.</div>
+        <div class="panel-subtitle">Upload a PDF (max 20MB). We count pages automatically.</div>
       </div>
-      <input id="fileInput" type="file" accept="application/pdf,image/png,image/jpeg" />
+      <input id="fileInput" type="file" accept="application/pdf" />
       <div class="grid-2">
         <div>
           <label>Detected pages</label>
@@ -126,18 +126,32 @@
         </div>
         <div>
           <label>Preview file</label>
-          <button class="btn ghost" id="previewBtn">Open Preview</button>
+          <button class="btn ghost" id="previewBtn" type="button">Open Preview</button>
         </div>
       </div>
       <div class="preview-panel">
         <div class="preview-title">Live preview</div>
         <div class="preview-canvas">
-          <canvas id="previewCanvas"></canvas>
+          <div class="preview-strip" id="previewStrip" aria-label="Live preview pages"></div>
           <div class="preview-pages" id="previewPages">0 pages</div>
         </div>
-        <div class="note" id="previewState">Upload a document to preview changes.</div>
+        <div class="note" id="previewState">Upload a PDF to preview changes.</div>
       </div>
     </section>
+
+    <select id="paymentMethod">
+  <option value="">Select Payment Method</option>
+  <option value="cash">Cash</option>
+  <option value="upi">UPI</option>
+</select>
+
+<div id="upiSection" style="display:none;">
+  <img id="upiQR" width="200"/>
+  <br/>
+  <input type="file" id="paymentProof"/>
+  <button onclick="uploadProof()">Upload Screenshot</button>
+</div>
+
 
     <section class="panel">
       <div>
@@ -150,8 +164,9 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+  <!-- Self-hosted vendors (avoids Tracking Prevention blocking CDN scripts). -->
+  <script src="../vendor/pdfjs/pdf.min.js"></script>
+  <script src="../vendor/pdf-lib/pdf-lib.min.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/order.js"></script>
 </body>

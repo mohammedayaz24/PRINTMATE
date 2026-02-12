@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Super Admin - PrintMate</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="css/super-admin.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+
+<div class="dashboard">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>PrintMate</h2>
+    <ul>
+      <li onclick="navigate('dashboard')" class="active">Dashboard</li>
+      <li onclick="navigate('shops')">Shops</li>
+      <li onclick="navigate('admins')">Admins</li>
+      <li onclick="navigate('analytics')">Analytics</li>
+    </ul>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="topbar">
+      <h1 id="pageTitle">Dashboard</h1>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="dashboardSection" class="content-section">
+      <div class="stats">
+        <div class="stat-card">
+          <h4>Total Orders</h4>
+          <p id="totalOrders">-</p>
+        </div>
+
+        <div class="stat-card">
+          <h4>Total Revenue</h4>
+          <p id="totalRevenue">-</p>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </section>
+
+    <!-- SHOPS -->
+    <section id="shopsSection" class="content-section hidden">
+      <h3>Shops</h3>
+      <div id="shops"></div>
+    </section>
+
+    <!-- ADMINS -->
+    <section id="adminsSection" class="content-section hidden">
+      <h3>Admins</h3>
+      <div id="admins"></div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section id="analyticsSection" class="content-section hidden">
+      <h3>Analytics</h3>
+      <p>Advanced analytics coming soon...</p>
+    </section>
+
+  </main>
+
+</div>
+
+<script>
+
+const api = axios.create({
+  baseURL: "http://127.0.0.1:8000"
+});
+
+// Add Super Admin Header
+api.interceptors.request.use(config => {
+  config.headers["X-ROLE"] = "SUPER_ADMIN"; // adjust if backend expects lowercase
+  return config;
+});
+
+// ===============================
+// NAVIGATION
+// ===============================
+function navigate(section) {
+
+  document.querySelectorAll(".sidebar li")
+    .forEach(li => li.classList.remove("active"));
+
+  event.target.classList.add("active");
+
+  document.querySelectorAll(".content-section")
+    .forEach(sec => sec.classList.add("hidden"));
+
+  document.getElementById("pageTitle").innerText =
+    section.charAt(0).toUpperCase() + section.slice(1);
+
+  document.getElementById(section + "Section")
+    .classList.remove("hidden");
+
+  if (section === "shops") loadShops();
+  if (section === "admins") loadAdmins();
+}
+
+// ===============================
+// SYSTEM LOAD
+// ===============================
+let chartInstance = null;
+
+async function loadSystem() {
+  try {
+    const res = await api.get("/super-admin/analytics/system");
+
+    const orders = res.data.total_orders || 0;
+    const revenue = res.data.total_revenue || 0;
+
+    document.getElementById("totalOrders").innerText = orders;
+    document.getElementById("totalRevenue").innerText = "₹" + revenue;
+
+    renderChart(orders, revenue);
+
+  } catch (err) {
+    console.error("System Load Error:", err);
+  }
+}
+
+function renderChart(orders, revenue) {
+  const ctx = document.getElementById("revenueChart");
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Orders", "Revenue"],
+      datasets: [{
+        label: "System Overview",
+        data: [orders, revenue]
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+// ===============================
+// SHOPS
+// ===============================
+async function loadShops() {
+  try {
+    const res = await api.get("/super-admin/shops");
+    const container = document.getElementById("shops");
+    container.innerHTML = "";
+
+    res.data.forEach(shop => {
+      container.innerHTML += `
+        <div class="card">
+          <p><strong>ID:</strong> ${shop.id}</p>
+          <p>Status:
+            ${shop.accepting_orders
+              ? '<span class="badge active">Active</span>'
+              : '<span class="badge closed">Closed</span>'}
+          </p>
+          <button class="delete" onclick="deleteShop('${shop.id}')">
+            Delete
+          </button>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error("Shops Load Error:", err);
+  }
+}
+
+async function deleteShop(id) {
+  if (!confirm("Delete this shop?")) return;
+
+  await api.delete(`/super-admin/shops/${id}`);
+  loadShops();
+}
+
+// ===============================
+// ADMINS
+// ===============================
+async function loadAdmins() {
+  try {
+    const res = await api.get("/super-admin/admins");
+    const container = document.getElementById("admins");
+    container.innerHTML = "";
+
+    res.data.forEach(admin => {
+      container.innerHTML += `
+        <div class="card">
+          <p><strong>ID:</strong> ${admin.id}</p>
+          <p><strong>Role:</strong> ${admin.role}</p>
+          <button class="suspend" onclick="suspendAdmin('${admin.id}')">
+            Suspend
+          </button>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error("Admins Load Error:", err);
+  }
+}
+
+async function suspendAdmin(id) {
+  if (!confirm("Suspend this admin?")) return;
+
+  await api.patch(`/super-admin/admins/${id}/suspend`);
+  loadAdmins();
+}
+
+
+
+// Initial load
+loadSystem();
+
+</script>
+
+</body>
+</html>

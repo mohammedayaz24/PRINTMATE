@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PrintMate - Profile</title>
   <link rel="stylesheet" href="../css/theme.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="student">
 
@@ -27,31 +24,54 @@
   <section class="page-header">
     <div class="eyebrow">Account</div>
     <div class="page-title">Profile Settings</div>
-    <p class="subtitle">Manage your student account details and see which ID is active.</p>
+    <p class="subtitle">Manage your student account details.</p>
   </section>
 
   <section class="panel">
+
+    <div class="row">
+      <div class="label">Name</div>
+      <div class="value" id="studentName">Loading...</div>
+    </div>
+
+    <div class="row">
+      <div class="label">Roll No</div>
+      <div class="value" id="studentRoll">Loading...</div>
+    </div>
+
     <div class="row">
       <div class="label">Student ID</div>
-      <div class="value" id="studentId">-</div>
+      <div class="value" id="studentId">Loading...</div>
     </div>
+
     <div class="row">
       <div class="label">Status</div>
       <div class="value">Active</div>
     </div>
-    <div class="row">
-      <div class="label">Default Payment</div>
-      <div class="value">Not set</div>
-    </div>
-    <div class="note">The student ID is read from the API header in `ui/js/api.js`.</div>
+
   </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="../js/api.js"></script>
+
 <script>
-  const studentId = window.STUDENT_ID || "Not set";
-  document.getElementById("studentId").textContent = studentId;
+  const nameEl = document.getElementById("studentName");
+  const rollEl = document.getElementById("studentRoll");
+  const idEl = document.getElementById("studentId");
+
+  api.get("/student/profile")
+    .then(res => {
+      nameEl.textContent = res.data.username;
+      rollEl.textContent = res.data.roll_no ?? "-";
+      idEl.textContent = res.data.id;
+    })
+    .catch(err => {
+      console.error("Profile load failed:", err);
+      nameEl.textContent = "Error loading profile";
+      rollEl.textContent = "-";
+      idEl.textContent = "-";
+    });
 </script>
 
 </body>

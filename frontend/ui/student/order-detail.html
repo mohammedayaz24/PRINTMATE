@@ -128,258 +128,173 @@
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="../js/api.js"></script>
+
 <script>
-  const params = new URLSearchParams(window.location.search);
-  const orderId = params.get("id");
-  const uploadBaseUrl = "http://127.0.0.1:8000";
+const params = new URLSearchParams(window.location.search);
+const orderId = params.get("id");
 
-  const orderTitle = document.getElementById("orderTitle");
-  const orderSubtitle = document.getElementById("orderSubtitle");
-  const orderInfo = document.getElementById("orderInfo");
-  const documentsList = document.getElementById("documentsList");
-  const invoiceInfo = document.getElementById("invoiceInfo");
-  const invoiceState = document.getElementById("invoiceState");
-  const optionsState = document.getElementById("optionsState");
-  const uploadState = document.getElementById("uploadState");
-  const stateDiv = document.getElementById("state");
+const orderTitle = document.getElementById("orderTitle");
+const orderSubtitle = document.getElementById("orderSubtitle");
+const orderInfo = document.getElementById("orderInfo");
+const invoiceInfo = document.getElementById("invoiceInfo");
+const invoiceState = document.getElementById("invoiceState");
+const stateDiv = document.getElementById("state");
 
-  const cancelBtn = document.getElementById("cancelBtn");
-  const refreshBtn = document.getElementById("refreshBtn");
-  const invoiceBtn = document.getElementById("invoiceBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+const refreshBtn = document.getElementById("refreshBtn");
+const invoiceBtn = document.getElementById("invoiceBtn");
 
-  const optionsForm = document.getElementById("optionsForm");
-  const uploadForm = document.getElementById("uploadForm");
+let currentOrder = null;
 
-  const pageRanges = document.getElementById("pageRanges");
-  const colorMode = document.getElementById("colorMode");
-  const sideMode = document.getElementById("sideMode");
-  const orientation = document.getElementById("orientation");
-  const binding = document.getElementById("binding");
-  const copies = document.getElementById("copies");
-  const uploadFile = document.getElementById("uploadFile");
+function formatDate(value) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString();
+}
 
-  let currentOrder = null;
+function formatCurrency(value) {
+  if (value === null || value === undefined) return "-";
+  return "₹" + value;
+}
 
-  function normalize(value) {
-    return (value || "").toString().trim();
-  }
+function renderOrder(order) {
+  const status = order.status?.toUpperCase() || "UNKNOWN";
+  const payment = order.payment_status?.toUpperCase() || "UNKNOWN";
 
-  function normalizeUpper(value) {
-    return normalize(value).toUpperCase();
-  }
+  orderTitle.textContent = "Order #" + order.id;
+  orderSubtitle.textContent =
+    status.replace(/_/g, " ") + " | " + payment;
 
-  function formatDate(value) {
-    if (!value) return "-";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-  }
+  orderInfo.innerHTML = `
+    <div class="info-card">
+      <div class="info-label">Student</div>
+      <div class="info-value">${order.full_name ?? "-"}</div>
+    </div>
 
-  function formatCurrency(value) {
-    if (value === null || value === undefined || value === "") return "-";
-    const numeric = Number(value);
-    if (Number.isNaN(numeric)) return String(value);
-    try {
-      return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0
-      }).format(numeric);
-    } catch (err) {
-      return "INR " + numeric;
-    }
-  }
+    <div class="info-card">
+      <div class="info-label">Roll No</div>
+      <div class="info-value">${order.roll_no ?? "-"}</div>
+    </div>
 
-  function renderInfo(container, items) {
-    container.innerHTML = items.map(item => {
-      return `
-        <div class="info-card">
-          <div class="info-label">${item.label}</div>
-          <div class="info-value">${item.value}</div>
-        </div>
-      `;
-    }).join("");
-  }
+    <div class="info-card">
+      <div class="info-label">Pages</div>
+      <div class="info-value">${order.total_pages ?? "-"}</div>
+    </div>
 
-  function renderDocuments(docs) {
-    if (!docs.length) {
-      documentsList.innerHTML = "<div class=\"panel-subtitle\">No documents uploaded yet.</div>";
-      return;
-    }
+    <div class="info-card">
+      <div class="info-label">Estimated Cost</div>
+      <div class="info-value">₹${order.estimated_cost ?? "-"}</div>
+    </div>
 
-    documentsList.innerHTML = docs.map(doc => {
-      const fileLink = doc.file_url ? `${uploadBaseUrl}${doc.file_url}` : "";
-      const linkMarkup = fileLink ? `<a href=\"${fileLink}\" target=\"_blank\">Open</a>` : "";
-      return `
-        <div class="list-item">
-          <div class="list-info">
-            <div class="list-title">${doc.original_filename}</div>
-            <div class="list-meta">Uploaded ${formatDate(doc.uploaded_at)}</div>
+    <div class="info-card">
+      <div class="info-label">Final Cost</div>
+      <div class="info-value">₹${order.final_cost ?? "-"}</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-label">Created</div>
+      <div class="info-value">${new Date(order.created_at).toLocaleString()}</div>
+    </div>
+
+    ${
+      order.document_url
+        ? `
+        <div class="info-card" style="grid-column:1/-1">
+          <div class="info-label">Document</div>
+          <div class="info-value">
+            <strong>${order.document_name}</strong>
+            <div style="margin-top:12px">
+              <iframe 
+                src="${order.document_url}"
+                width="100%"
+                height="500"
+                style="border-radius:12px;border:1px solid #e0e0e0;">
+              </iframe>
+            </div>
+            <div style="margin-top:12px">
+              <a class="btn primary"
+                 href="${order.document_url}"
+                 target="_blank">
+                 Open / Print PDF
+              </a>
+            </div>
           </div>
-          <div class="list-meta">${linkMarkup}</div>
         </div>
-      `;
-    }).join("");
-  }
-
-  function renderInvoice(invoice) {
-    if (!invoice) {
-      invoiceInfo.innerHTML = "<div class=\"panel-subtitle\">No invoice created yet.</div>";
-      return;
+        `
+        : ""
     }
+  `;
+}
 
-    const items = [
-      { label: "Invoice", value: invoice.invoice_number ?? "-" },
-      { label: "Subtotal", value: formatCurrency(invoice.subtotal) },
-      { label: "Tax", value: formatCurrency(invoice.tax) },
-      { label: "Total", value: formatCurrency(invoice.total) },
-      { label: "Paid At", value: formatDate(invoice.paid_at) },
-      { label: "Payment Mode", value: invoice.payment_mode ?? "-" }
-    ];
 
-    renderInfo(invoiceInfo, items);
+function renderInvoice(invoice) {
+  if (!invoice) {
+    invoiceInfo.innerHTML = "<div>No invoice generated yet.</div>";
+    return;
   }
 
-  function updateFormState(status, paymentStatus) {
-    const isPending = status === "PENDING" && paymentStatus !== "PAID";
-    optionsForm.querySelectorAll("input, select, button").forEach(el => {
-      el.disabled = !isPending;
-    });
+  invoiceInfo.innerHTML = `
+    <div class="info-card">
+      <div class="info-label">Invoice Number</div>
+      <div class="info-value">${invoice.invoice_number}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">Total</div>
+      <div class="info-value">${formatCurrency(invoice.total)}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">Paid At</div>
+      <div class="info-value">${formatDate(invoice.paid_at)}</div>
+    </div>
+  `;
+}
 
-    uploadForm.querySelectorAll("input, button").forEach(el => {
-      el.disabled = !isPending;
-    });
-
-    cancelBtn.style.display = status === "PENDING" ? "inline-flex" : "none";
+function loadOrder() {
+  if (!orderId) {
+    stateDiv.textContent = "Missing order id.";
+    return;
   }
 
-  function renderOrder(order, printOptions, documents) {
-    const status = normalizeUpper(order.status) || "UNKNOWN";
-    const payment = normalizeUpper(order.payment_status) || "UNKNOWN";
+  stateDiv.textContent = "Loading order...";
 
-    orderTitle.textContent = "Order #" + order.id;
-    orderSubtitle.textContent = status.replace(/_/g, " ") + " | " + payment.replace(/_/g, " ");
-
-    const items = [
-      { label: "Status", value: `<span class=\"status-pill ${status}\">${status.replace(/_/g, " ")}</span>` },
-      { label: "Payment", value: `<span class=\"payment-pill ${payment}\">${payment}</span>` },
-      { label: "Pages", value: order.total_pages ?? "-" },
-      { label: "Estimated Cost", value: formatCurrency(order.estimated_cost) },
-      { label: "Final Cost", value: formatCurrency(order.final_cost) },
-      { label: "Created", value: formatDate(order.created_at) },
-      { label: "Ready Time", value: formatDate(order.estimated_ready_time) }
-    ];
-
-    renderInfo(orderInfo, items);
-    renderDocuments(documents || []);
-    updateFormState(status, payment);
-
-    if (printOptions) {
-      pageRanges.value = printOptions.page_ranges ?? "";
-      colorMode.value = printOptions.color_mode ?? "BW";
-      sideMode.value = printOptions.side_mode ?? "SINGLE";
-      orientation.value = printOptions.orientation ?? "PORTRAIT";
-      binding.value = printOptions.binding ?? "NONE";
-      copies.value = printOptions.copies ?? 1;
-    }
-  }
-
-  function loadOrder() {
-    if (!orderId) {
-      stateDiv.textContent = "Missing order id.";
-      return;
-    }
-
-    stateDiv.textContent = "Loading order...";
-    api.get(`/student/orders/${orderId}`)
-      .then(res => {
-        stateDiv.textContent = "";
-        currentOrder = res.data.order;
-        renderOrder(res.data.order, res.data.print_options, res.data.documents);
-      })
-      .catch(() => {
-        stateDiv.textContent = "Failed to load order.";
-      });
-  }
-
-  function loadInvoice() {
-    invoiceState.textContent = "Loading invoice...";
-    api.get(`/orders/${orderId}/invoice`)
-      .then(res => {
-        invoiceState.textContent = "";
-        renderInvoice(res.data);
-      })
-      .catch(() => {
-        invoiceState.textContent = "No invoice available.";
-        renderInvoice(null);
-      });
-  }
-
-  optionsForm.addEventListener("submit", event => {
-    event.preventDefault();
-    if (!currentOrder) return;
-
-    const payload = {
-      page_ranges: pageRanges.value.trim(),
-      color_mode: colorMode.value,
-      side_mode: sideMode.value,
-      orientation: orientation.value,
-      binding: binding.value,
-      copies: Number(copies.value) || 1
-    };
-
-    optionsState.textContent = "Saving print options...";
-    api.post(`/student/orders/${orderId}/print-options`, payload)
-      .then(res => {
-        const price = res.data.estimated_cost;
-        optionsState.textContent = price ? "Updated. New estimate: " + formatCurrency(price) : "Options updated.";
-        loadOrder();
-      })
-      .catch(() => {
-        optionsState.textContent = "Failed to update print options.";
-      });
-  });
-
-  uploadForm.addEventListener("submit", event => {
-    event.preventDefault();
-    const file = uploadFile.files[0];
-    if (!file) {
-      uploadState.textContent = "Choose a file first.";
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    uploadState.textContent = "Uploading document...";
-    api.post(`/student/orders/${orderId}/upload`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
+  api.get(`/student/orders/${orderId}`)
+    .then(res => {
+      currentOrder = res.data;
+      stateDiv.textContent = "";
+      renderOrder(currentOrder);
     })
-      .then(() => {
-        uploadState.textContent = "Upload complete.";
-        uploadFile.value = "";
-        loadOrder();
-      })
-      .catch(() => {
-        uploadState.textContent = "Failed to upload document.";
-      });
-  });
+    .catch(err => {
+      console.error(err);
+      stateDiv.textContent = "Failed to load order.";
+    });
+}
 
-  cancelBtn.addEventListener("click", () => {
-    if (!currentOrder) return;
-    api.patch(`/student/orders/${orderId}/cancel`)
-      .then(() => {
-        loadOrder();
-      })
-      .catch(() => {
-        stateDiv.textContent = "Unable to cancel this order.";
-      });
-  });
+function loadInvoice() {
+  invoiceState.textContent = "Loading invoice...";
 
-  refreshBtn.addEventListener("click", loadOrder);
-  invoiceBtn.addEventListener("click", loadInvoice);
+  // 🔥 FIXED ROUTE
+  api.get(`/student/orders/${orderId}/invoice`)
+    .then(res => {
+      invoiceState.textContent = "";
+      renderInvoice(res.data);
+    })
+    .catch(() => {
+      invoiceState.textContent = "No invoice available.";
+      renderInvoice(null);
+    });
+}
 
-  loadOrder();
+cancelBtn.addEventListener("click", () => {
+  api.patch(`/student/orders/${orderId}/cancel`)
+    .then(() => loadOrder())
+    .catch(() => {
+      stateDiv.textContent = "Unable to cancel order.";
+    });
+});
+
+refreshBtn.addEventListener("click", loadOrder);
+invoiceBtn.addEventListener("click", loadInvoice);
+
+loadOrder();
 </script>
-
 </body>
 </html>

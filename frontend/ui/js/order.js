@@ -114,28 +114,28 @@ function hashCode(input) {
   return Math.abs(hash);
 }
 
-function getShopMeta(id) {
-  const hash = hashCode(id);
-  const names = ["Campus Prints", "BlueLine Studio", "QuickCopy Hub", "Ink & Paper", "PrintPad"];
-  const streets = ["North Avenue", "Library Road", "Main Street", "Science Park", "Hostel Lane"];
-  const phones = ["+91 98765 43210", "+91 91234 56780", "+91 99887 76655", "+91 90909 12345", "+91 95555 22334"];
-  return {
-    name: names[hash % names.length],
-    address: `${(hash % 90) + 10}, ${streets[hash % streets.length]}, City Campus`,
-    contact: phones[hash % phones.length]
-  };
-}
+
 
 function updateShopHeader(shop) {
-  const meta = getShopMeta(shop.id);
-  shopTitle.textContent = `Shop ${shop.id}`;
-  shopMeta.textContent = `${meta.name} · ${meta.address}`;
-  shopInfo.textContent = `Contact ${meta.contact} · Avg ${shop.avg_print_time_per_page ?? "-"} sec/page`;
-  shopBadge.textContent = meta.name.split(" ").map(word => word[0]).slice(0, 2).join("");
+  if (!shop) return;
+
+  shopTitle.textContent = shop.shop_name || `Shop ${shop.id}`;
+  shopMeta.textContent = shop.address || "-";
+  shopInfo.textContent = `Contact ${shop.phone || "-"} · Avg ${shop.avg_print_time_per_page ?? "-"} sec/page`;
+
+  const initials = (shop.shop_name || "PM")
+    .split(" ")
+    .map(word => word[0])
+    .slice(0, 2)
+    .join("");
+
+  shopBadge.textContent = initials;
+
   shopOpen = !!shop.accepting_orders;
   shopStatus.textContent = shopOpen ? "Accepting" : "Closed";
   shopStatus.className = `pill ${shopOpen ? "COMPLETED" : "CANCELLED"}`;
 }
+
 
 function setNote(el, message, tone = "") {
   if (!el) return;
@@ -825,28 +825,31 @@ async function openPreviewModal(bytes) {
   previewModalTotalPages = previewModalPdf?.numPages || 0;
   await renderPreviewModalAllPages(jobId);
 }
-
 function loadShop() {
   shopId = getQueryParam("shop_id");
+
   if (!shopId) {
     setNote(createState, "Missing shop id in URL.", "error");
     return;
   }
 
-  api.get("/shops")
+  api.get(`/shops/${shopId}`)
     .then(res => {
-      const shops = Array.isArray(res.data) ? res.data : [];
-      const shop = shops.find(item => String(item.id) === String(shopId));
-      if (!shop) {
+      const shop = res.data;
+
+      if (!shop || !shop.id) {
         setNote(createState, "Shop not found.", "error");
         return;
       }
+
       updateShopHeader(shop);
     })
-    .catch(() => {
+    .catch(err => {
+      console.error("Shop load error:", err);
       setNote(createState, "Failed to load shop details.", "error");
     });
 }
+
 
 fileInput.addEventListener("change", async event => {
   selectedFile = event.target.files[0];

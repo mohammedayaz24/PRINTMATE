@@ -41,6 +41,8 @@ if os.path.isdir(FRONTEND_UI_DIR):
     app.mount("/ui", StaticFiles(directory=FRONTEND_UI_DIR), name="ui")
 
 # Include each router exactly once to avoid duplicate routes/operation_ids.
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")
+
 app.include_router(test_db_router)
 app.include_router(shops_router)
 app.include_router(orders_router)
@@ -48,3 +50,8 @@ app.include_router(admin.router)
 app.include_router(student_router)
 app.include_router(super_admin.router)
 app.include_router(payment.router)
+
+
+@app.get("/")
+def root():
+    return {"message": "PrintMate Backend Running"}

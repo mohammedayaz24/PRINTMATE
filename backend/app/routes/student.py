@@ -6,6 +6,7 @@ from PIL import Image
 
 from app.database import engine
 from app.services.pricing import calculate_price
+from app.services.supabase_storage import upload_file
 
 router = APIRouter(prefix="/student", tags=["Student"])
 
@@ -179,17 +180,14 @@ def cancel_order(
 # =====================================================
 # 4️⃣ UPLOAD DOCUMENT (MOCK STORAGE)
 # =====================================================
+
 @router.post("/orders/{order_id}/upload")
 async def upload_document(
     order_id: str,
     file: UploadFile = File(...),
     student_id: str = Header(..., alias="X-STUDENT-ID")
 ):
-    ALLOWED_TYPES = {
-        "application/pdf",
-        "image/png",
-        "image/jpeg"
-    }
+    ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(400, "Unsupported file type")
@@ -200,9 +198,11 @@ async def upload_document(
         buffer = BytesIO()
         image.convert("RGB").save(buffer, format="PDF")
         buffer.seek(0)
-        _ = buffer.read()
+        file_bytes = buffer.read()
+        filename = f"{order_id}.pdf"
     else:
-        _ = await file.read()
+        file_bytes = await file.read()
+        filename = file.filename
 
     with engine.connect() as connection:
 
@@ -222,8 +222,8 @@ async def upload_document(
         if order.status != "PENDING":
             raise HTTPException(400, "Upload allowed only in PENDING state")
 
-        # Mock storage URL (kept per MVP requirement).
-        file_url = f"https://mock-storage/printmate/{order_id}/{file.filename}"
+        # 🔥 REAL SUPABASE UPLOAD
+        file_url = upload_file(order_id, file_bytes, filename)
 
         doc = connection.execute(
             text("""
@@ -236,7 +236,7 @@ async def upload_document(
             {
                 "order_id": order_id,
                 "url": file_url,
-                "name": file.filename
+                "name": filename
             }
         ).fetchone()
 
@@ -397,3 +397,23 @@ def get_student_order_detail(
         "documents": documents,
         "print_options": dict(print_options._mapping) if print_options else None
     }
+
+
+@router.get("/profile")
+def student_profile(
+    student_id: str = Header(..., alias="X-STUDENT-ID")
+):
+    with engine.connect() as connection:
+        user = connection.execute(
+            text("""
+                SELECT id, username, roll_no
+                FROM users
+                WHERE id = :id
+            """),
+            {"id": student_id}
+        ).fetchone()
+
+    if not user:
+        raise HTTPException(404, "Student not found")
+
+    return dict(user._mapping)

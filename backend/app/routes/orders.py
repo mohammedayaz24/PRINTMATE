@@ -8,13 +8,35 @@ from app.database import engine
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
-# ----------------------------------------------------
+
+# =====================================================
 # ORDER CREATION
-# ----------------------------------------------------
+# =====================================================
 @router.post("/")
-def create_order(order: dict):
+def create_order(
+    order: dict,
+    student_id: str = Header(..., alias="X-STUDENT-ID")
+):
+
+    # Required fields from frontend
+    required_fields = ["shop_id", "total_pages", "estimated_cost"]
+
+    for field in required_fields:
+        if field not in order:
+            raise HTTPException(400, f"{field} is required")
+
     with engine.connect() as connection:
 
+        # 1️⃣ Validate Student
+        student = connection.execute(
+            text("SELECT id FROM users WHERE id = :id"),
+            {"id": student_id}
+        ).fetchone()
+
+        if not student:
+            raise HTTPException(400, "Invalid student ID")
+
+        # 2️⃣ Validate Shop
         shop = connection.execute(
             text("""
                 SELECT accepting_orders, avg_print_time_per_page
@@ -30,6 +52,7 @@ def create_order(order: dict):
         if not shop.accepting_orders:
             raise HTTPException(400, "Shop not accepting orders")
 
+        # 3️⃣ Calculate ETA
         queued_pages = connection.execute(
             text("""
                 SELECT COALESCE(SUM(total_pages), 0)
@@ -40,25 +63,42 @@ def create_order(order: dict):
             {"shop_id": order["shop_id"]}
         ).scalar()
 
+        total_pages = int(order["total_pages"])
+
         eta = datetime.utcnow() + timedelta(
-            seconds=(queued_pages + order["total_pages"]) * shop.avg_print_time_per_page
+            seconds=(queued_pages + total_pages) * shop.avg_print_time_per_page
         )
 
+        # 4️⃣ Insert Order
         result = connection.execute(
             text("""
                 INSERT INTO orders (
-                    student_id, shop_id, total_pages,
-                    status, payment_status,
-                    estimated_cost, estimated_ready_time
+                    student_id,
+                    shop_id,
+                    total_pages,
+                    status,
+                    payment_status,
+                    estimated_cost,
+                    estimated_ready_time
                 )
                 VALUES (
-                    :student_id, :shop_id, :total_pages,
-                    'PENDING', 'UNPAID',
-                    :estimated_cost, :eta
+                    :student_id,
+                    :shop_id,
+                    :total_pages,
+                    'PENDING',
+                    'UNPAID',
+                    :estimated_cost,
+                    :eta
                 )
-                RETURNING id, estimated_ready_time
+                RETURNING *
             """),
-            {**order, "eta": eta}
+            {
+                "student_id": student_id,
+                "shop_id": order["shop_id"],
+                "total_pages": total_pages,
+                "estimated_cost": order["estimated_cost"],
+                "eta": eta
+            }
         ).fetchone()
 
         connection.commit()
@@ -66,9 +106,9 @@ def create_order(order: dict):
     return dict(result._mapping)
 
 
-# ----------------------------------------------------
+# =====================================================
 # STATUS TRANSITIONS
-# ----------------------------------------------------
+# =====================================================
 VALID_TRANSITIONS = {
     "PENDING": ["IN_PROGRESS", "CANCELLED"],
     "IN_PROGRESS": ["COMPLETED"],
@@ -83,6 +123,7 @@ def update_order_status(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
 ):
+
     role = role.strip().upper()
     new_status = payload.get("status")
 
@@ -93,10 +134,12 @@ def update_order_status(
         raise HTTPException(403, "Access denied")
 
     with engine.connect() as connection:
+
         order = connection.execute(
             text("""
                 SELECT status, shop_id, payment_status
-                FROM orders WHERE id = :id
+                FROM orders
+                WHERE id = :id
             """),
             {"id": order_id}
         ).fetchone()
@@ -111,7 +154,7 @@ def update_order_status(
             raise HTTPException(400, "Invalid status transition")
 
         if new_status == "DELIVERED" and order.payment_status != "PAID":
-            raise HTTPException(400, "Order must be PAID before delivery")
+            raise HTTPException(400, "Must be PAID before delivery")
 
         updated = connection.execute(
             text("""
@@ -128,25 +171,28 @@ def update_order_status(
     return dict(updated._mapping)
 
 
-# ----------------------------------------------------
+# =====================================================
 # FINALIZE COST
-# ----------------------------------------------------
+# =====================================================
 @router.post("/{order_id}/finalize-cost")
 def finalize_cost(
     order_id: str,
     role: str = Header(..., alias="X-ROLE"),
     shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
 ):
+
     role = role.strip().upper()
 
     if role not in ("ADMIN", "SUPER_ADMIN"):
         raise HTTPException(403, "Access denied")
 
     with engine.connect() as connection:
+
         order = connection.execute(
             text("""
                 SELECT total_pages, shop_id, status, payment_status
-                FROM orders WHERE id = :id
+                FROM orders
+                WHERE id = :id
             """),
             {"id": order_id}
         ).fetchone()
@@ -166,7 +212,8 @@ def finalize_cost(
         options = connection.execute(
             text("""
                 SELECT color_mode, side_mode, binding, copies
-                FROM print_options WHERE order_id = :id
+                FROM print_options
+                WHERE order_id = :id
             """),
             {"id": order_id}
         ).fetchone()
@@ -200,9 +247,9 @@ def finalize_cost(
     return dict(result._mapping)
 
 
-# ----------------------------------------------------
-# PAYMENT + INVOICE
-# ----------------------------------------------------
+# =====================================================
+# PAYMENT
+# =====================================================
 @router.patch("/{order_id}/pay")
 def pay_order(
     order_id: str,
@@ -210,6 +257,7 @@ def pay_order(
     role: str = Header(..., alias="X-ROLE"),
     shop_id: Optional[str] = Header(None, alias="X-SHOP-ID")
 ):
+
     role = role.strip().upper()
     payment_mode = payload.get("payment_mode")
 
@@ -220,10 +268,12 @@ def pay_order(
         raise HTTPException(403, "Access denied")
 
     with engine.connect() as connection:
+
         order = connection.execute(
             text("""
                 SELECT shop_id, payment_status, final_cost
-                FROM orders WHERE id = :id
+                FROM orders
+                WHERE id = :id
             """),
             {"id": order_id}
         ).fetchone()
@@ -235,7 +285,7 @@ def pay_order(
             raise HTTPException(403, "Not your shop order")
 
         if order.final_cost is None:
-            raise HTTPException(400, "Finalize cost before payment")
+            raise HTTPException(400, "Finalize cost first")
 
         if order.payment_status == "PAID":
             return {"detail": "Already paid"}
@@ -254,12 +304,18 @@ def pay_order(
         connection.execute(
             text("""
                 INSERT INTO invoices (
-                    order_id, invoice_number,
-                    subtotal, tax, total
+                    order_id,
+                    invoice_number,
+                    subtotal,
+                    tax,
+                    total
                 )
                 VALUES (
-                    :order_id, :invoice,
-                    :total, 0, :total
+                    :order_id,
+                    :invoice,
+                    :total,
+                    0,
+                    :total
                 )
                 ON CONFLICT (order_id) DO NOTHING
             """),
@@ -273,41 +329,3 @@ def pay_order(
         connection.commit()
 
     return {"order_id": order_id, "status": "PAID"}
-
-
-# ----------------------------------------------------
-# FRONTEND INVOICE (JSON)
-# ----------------------------------------------------
-@router.get("/{order_id}/invoice")
-def get_invoice(order_id: str):
-    with engine.connect() as connection:
-        invoice = connection.execute(
-            text("""
-                SELECT
-                    i.invoice_number,
-                    i.subtotal,
-                    i.tax,
-                    i.total,
-                    i.generated_at,
-                    o.student_id,
-                    o.shop_id,
-                    o.payment_mode,
-                    o.paid_at,
-                    po.page_ranges,
-                    po.color_mode,
-                    po.side_mode,
-                    po.orientation,
-                    po.binding,
-                    po.copies
-                FROM invoices i
-                JOIN orders o ON o.id = i.order_id
-                LEFT JOIN print_options po ON po.order_id = o.id
-                WHERE i.order_id = :id
-            """),
-            {"id": order_id}
-        ).fetchone()
-
-        if not invoice:
-            raise HTTPException(404, "Invoice not found")
-
-    return dict(invoice._mapping)

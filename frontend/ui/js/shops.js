@@ -1,3 +1,26 @@
+// Load and render a single shop's details by ID
+function loadShopDetails(shopId) {
+  if (!shopId) return;
+  shopState.textContent = "Loading shop details...";
+  api.get(`/shops/${shopId}`)
+    .then(res => {
+      const shop = res.data;
+      // Render shop details in a target element (customize as needed)
+      const detailsDiv = document.getElementById("shopDetails");
+      if (!detailsDiv) return;
+      detailsDiv.innerHTML = `
+        <h2>${shop.shop_name ?? "Shop"}</h2>
+        <div><strong>Address:</strong> ${shop.address ?? "-"}</div>
+        <div><strong>Phone:</strong> ${shop.phone ?? "-"}</div>
+        <div><strong>Status:</strong> ${shop.accepting_orders ? "Accepting Orders" : "Busy"}</div>
+        <div><strong>Avg Print Time:</strong> ${shop.avg_print_time_per_page ?? "-"} s/page</div>
+      `;
+      shopState.textContent = "";
+    })
+    .catch(() => {
+      shopState.textContent = "Failed to load shop details.";
+    });
+}
 // PRINTMATE - Shops (student)
 // Renders Amazon-style expandable cards with details inside each card.
 // Backend endpoint stays the same: GET /shops
@@ -181,10 +204,11 @@ function createShopCard(shop) {
   const isOpen = Boolean(shop?.accepting_orders);
 
   // Placeholders (frontend-only).
-  const name = pickByShopId(PLACEHOLDER_NAMES, shopId);
-  const description = pickByShopId(PLACEHOLDER_DESCRIPTIONS, shopId);
-  const contact = pickByShopId(PLACEHOLDER_CONTACTS, shopId);
-  const address = pickByShopId(PLACEHOLDER_ADDRESSES, shopId);
+  const name = shop.shop_name || "Shop";
+  const description = "Professional printing services available.";
+  const contact = shop.phone || "-";
+  const address = shop.address || "-";
+
 
   const card = document.createElement("article");
   card.className = "shop-card";

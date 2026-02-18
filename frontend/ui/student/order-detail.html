@@ -113,6 +113,18 @@
       </form>
       <div class="list" id="documentsList"></div>
     </div>
+    <div id="upiSection" style="display:none">
+    <h3>Scan to Pay</h3>
+    <canvas id="upiQR"></canvas>
+
+    <div style="margin-top:15px">
+      <input type="file" id="paymentScreenshot" accept="image/*">
+      <button class="btn primary" id="uploadScreenshotBtn">
+        Upload Payment Screenshot
+      </button>
+    </div>
+  </div>
+
 
     <div class="panel">
       <div>
@@ -125,9 +137,13 @@
     </div>
   </section>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../vendor/axios.min.js"></script>
+<script src="../vendor/pdfjs/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "../vendor/pdfjs/pdf.worker.min.js";
+</script>
 <script src="../js/api.js"></script>
+<script src="../js/order.js"></script>
 
 <script>
 const params = new URLSearchParams(window.location.search);
@@ -144,7 +160,14 @@ const cancelBtn = document.getElementById("cancelBtn");
 const refreshBtn = document.getElementById("refreshBtn");
 const invoiceBtn = document.getElementById("invoiceBtn");
 
+const upiSection = document.getElementById("upiSection");
+const qrCanvas = document.getElementById("upiQR");
+const uploadScreenshotBtn = document.getElementById("uploadScreenshotBtn");
+const paymentScreenshotInput = document.getElementById("paymentScreenshot");
+
 let currentOrder = null;
+
+/* -------------------- Helpers -------------------- */
 
 function formatDate(value) {
   if (!value) return "-";
@@ -156,7 +179,24 @@ function formatCurrency(value) {
   return "₹" + value;
 }
 
-function renderOrder(order) {
+/* -------------------- QR Generator -------------------- */
+
+function generateQR(upiLink) {
+  qrCanvas.innerHTML = "";
+  QRCode.toCanvas(qrCanvas, upiLink, {
+    width: 220
+  });
+}
+
+/* -------------------- Render Order -------------------- */
+
+function renderOrder(response) {
+
+  const order = response.order;
+  const documents = response.documents;
+
+  currentOrder = order;
+
   const status = order.status?.toUpperCase() || "UNKNOWN";
   const payment = order.payment_status?.toUpperCase() || "UNKNOWN";
 
@@ -182,85 +222,105 @@ function renderOrder(order) {
 
     <div class="info-card">
       <div class="info-label">Estimated Cost</div>
-      <div class="info-value">₹${order.estimated_cost ?? "-"}</div>
+      <div class="info-value">${formatCurrency(order.estimated_cost)}</div>
     </div>
 
     <div class="info-card">
       <div class="info-label">Final Cost</div>
-      <div class="info-value">₹${order.final_cost ?? "-"}</div>
+      <div class="info-value">${formatCurrency(order.final_cost)}</div>
     </div>
 
     <div class="info-card">
-      <div class="info-label">Created</div>
-      <div class="info-value">${new Date(order.created_at).toLocaleString()}</div>
+      <div class="info-label">Payment Mode</div>
+      <div class="info-value">${order.payment_mode ?? "-"}</div>
     </div>
 
-    ${
-      order.document_url
-        ? `
-        <div class="info-card" style="grid-column:1/-1">
-          <div class="info-label">Document</div>
-          <div class="info-value">
-            <strong>${order.document_name}</strong>
-            <div style="margin-top:12px">
-              <iframe 
-                src="${order.document_url}"
-                width="100%"
-                height="500"
-                style="border-radius:12px;border:1px solid #e0e0e0;">
-              </iframe>
-            </div>
-            <div style="margin-top:12px">
-              <a class="btn primary"
-                 href="${order.document_url}"
-                 target="_blank">
-                 Open / Print PDF
-              </a>
-            </div>
-          </div>
-        </div>
-        `
-        : ""
-    }
+    <div class="info-card">
+      <div class="info-label">Payment Status</div>
+      <div class="info-value">${order.payment_status}</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-label">Verification</div>
+      <div class="info-value">${order.payment_verification_status ?? "-"}</div>
+    </div>
   `;
+
+  /* -------------------- Documents -------------------- */
+
+  const docList = document.getElementById("documentsList");
+  docList.innerHTML = "";
+
+  documents.forEach(doc => {
+    docList.innerHTML += `
+      <div class="list-item">
+        <a href="${doc.file_url}" target="_blank">${doc.original_filename}</a>
+      </div>
+    `;
+  });
+
+  /* -------------------- UPI SECTION -------------------- */
+
+  if (
+    order.payment_mode === "UPI" &&
+    order.final_cost &&
+    order.payment_status !== "PAID"
+  ) {
+
+    upiSection.style.display = "block";
+
+    api.get(`/orders/${order.id}/upi-link`)
+      .then(res => {
+        generateQR(res.data.upi_link);
+      });
+
+  } else {
+    upiSection.style.display = "none";
+  }
+
+  /* Lock cancel if not pending */
+  cancelBtn.style.display =
+    order.status === "PENDING" ? "inline-flex" : "none";
 }
 
+/* -------------------- Upload Screenshot -------------------- */
 
-function renderInvoice(invoice) {
-  if (!invoice) {
-    invoiceInfo.innerHTML = "<div>No invoice generated yet.</div>";
+uploadScreenshotBtn.addEventListener("click", () => {
+
+  const file = paymentScreenshotInput.files[0];
+
+  if (!file) {
+    alert("Please select screenshot");
     return;
   }
 
-  invoiceInfo.innerHTML = `
-    <div class="info-card">
-      <div class="info-label">Invoice Number</div>
-      <div class="info-value">${invoice.invoice_number}</div>
-    </div>
-    <div class="info-card">
-      <div class="info-label">Total</div>
-      <div class="info-value">${formatCurrency(invoice.total)}</div>
-    </div>
-    <div class="info-card">
-      <div class="info-label">Paid At</div>
-      <div class="info-value">${formatDate(invoice.paid_at)}</div>
-    </div>
-  `;
-}
+  const formData = new FormData();
+  formData.append("file", file);
+
+  api.post(`/student/orders/${orderId}/upload-payment-proof`, formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  })
+    .then(() => {
+      alert("Screenshot uploaded. Waiting for admin verification.");
+      loadOrder();
+    })
+    .catch(() => {
+      alert("Upload failed.");
+    });
+});
+
+/* -------------------- Load Order -------------------- */
 
 function loadOrder() {
   if (!orderId) {
     stateDiv.textContent = "Missing order id.";
     return;
   }
-
   stateDiv.textContent = "Loading order...";
-
   api.get(`/student/orders/${orderId}`)
     .then(res => {
-      currentOrder = res.data;
       stateDiv.textContent = "";
-      renderOrder(currentOrder);
+      renderOrder(res.data);
     })
     .catch(err => {
       console.error(err);
@@ -268,20 +328,36 @@ function loadOrder() {
     });
 }
 
+/* -------------------- Invoice -------------------- */
+
 function loadInvoice() {
   invoiceState.textContent = "Loading invoice...";
 
-  // 🔥 FIXED ROUTE
   api.get(`/student/orders/${orderId}/invoice`)
     .then(res => {
       invoiceState.textContent = "";
-      renderInvoice(res.data);
+      invoiceInfo.innerHTML = `
+        <div class="info-card">
+          <div class="info-label">Invoice Number</div>
+          <div class="info-value">${res.data.invoice_number}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Total</div>
+          <div class="info-value">${formatCurrency(res.data.total)}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Paid At</div>
+          <div class="info-value">${formatDate(res.data.paid_at)}</div>
+        </div>
+      `;
     })
     .catch(() => {
       invoiceState.textContent = "No invoice available.";
-      renderInvoice(null);
+      invoiceInfo.innerHTML = "";
     });
 }
+
+/* -------------------- Cancel -------------------- */
 
 cancelBtn.addEventListener("click", () => {
   api.patch(`/student/orders/${orderId}/cancel`)
@@ -296,5 +372,6 @@ invoiceBtn.addEventListener("click", loadInvoice);
 
 loadOrder();
 </script>
+
 </body>
 </html>

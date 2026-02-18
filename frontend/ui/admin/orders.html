@@ -109,6 +109,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
 <script src="../js/admin.js"></script>
 <script>
   const ordersDiv = document.getElementById("orders");
@@ -376,7 +377,7 @@
     stateDiv.textContent = "Loading orders...";
     ordersDiv.innerHTML = "";
 
-    adminApi.get("/admin/orders")
+    api.get("/admin/orders")
       .then(res => {
         allOrders = Array.isArray(res.data) ? res.data : [];
         updateStats();

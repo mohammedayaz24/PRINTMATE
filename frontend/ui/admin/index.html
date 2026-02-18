@@ -111,6 +111,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="../js/api.js"></script>
 <script src="../js/admin.js"></script>
 
 <script>
@@ -269,7 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function loadAnalytics(range) {
     analyticsState.textContent = "Loading analytics...";
-    adminApi.get(`/admin/analytics/${range}`)
+    api.get(`/admin/analytics/${range}`)
       .then(res => {
         const rows = Array.isArray(res.data.data) ? res.data.data : [];
         analyticsSubtitle.textContent = range.charAt(0).toUpperCase() + range.slice(1) + " overview";
@@ -283,7 +284,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function loadDashboard() {
     stateDiv.textContent = "Loading dashboard...";
-    adminApi.get("/admin/orders")
+    api.get("/admin/orders")
       .then(res => {
         allOrders = Array.isArray(res.data) ? res.data : [];
         updateStats();

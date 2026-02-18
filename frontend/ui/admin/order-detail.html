@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PrintMate Admin - Order Detail</title>
+
 <link rel="stylesheet" href="../css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-/* Prevent vertical button stretching */
 .action-stack .btn {
   width: 100%;
   padding: 12px 16px;
@@ -24,6 +24,11 @@
 .action-row select {
   flex: 1;
   padding: 10px;
+}
+
+#pdfViewer canvas {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
 }
 </style>
 </head>
@@ -56,7 +61,6 @@
 
 <section class="grid-2">
 
-<!-- LEFT PANEL -->
 <div class="panel">
   <div>
     <div class="panel-title">Order Overview</div>
@@ -65,7 +69,6 @@
   <div class="info-grid" id="orderInfo"></div>
 </div>
 
-<!-- RIGHT PANEL -->
 <div class="panel">
   <div>
     <div class="panel-title">Actions</div>
@@ -77,15 +80,13 @@
     <button class="btn primary" id="completeBtn">Mark Completed</button>
     <button class="btn primary" id="deliverBtn">Mark Delivered</button>
     <button class="btn ghost" id="finalizeBtn">Finalize Cost</button>
-
     <div class="action-row">
       <select id="paymentMode">
         <option value="CASH">Cash</option>
         <option value="UPI">UPI</option>
       </select>
-      <button class="btn ghost" id="payBtn">Mark Paid</button>
+      <button class="btn primary" id="payBtn">Mark Paid</button>
     </div>
-
     <div class="note" id="actionNote"></div>
   </div>
 </div>
@@ -102,8 +103,26 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="/frontend/ui/js/admin.js"></script>
+
+<!-- Use local vendor scripts to avoid CDN/Tracking Prevention issues -->
+
+<!-- Axios FIRST -->
+<script src="../vendor/axios.min.js"></script>
+
+<!-- PDF.js -->
+<script src="../vendor/pdfjs/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "../vendor/pdfjs/pdf.worker.min.js";
+</script>
+
+<!-- API -->
+<script src="../js/api.js"></script>
+
+<!-- Admin Header Setup (VERY IMPORTANT) -->
+<script src="../js/admin.js"></script>
+
+<!-- Order Logic -->
+<script src="../js/order.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -116,6 +135,7 @@ const orderInfo = document.getElementById("orderInfo");
 const invoiceInfo = document.getElementById("invoiceInfo");
 const stateDiv = document.getElementById("state");
 
+
 const startBtn = document.getElementById("startBtn");
 const completeBtn = document.getElementById("completeBtn");
 const deliverBtn = document.getElementById("deliverBtn");
@@ -127,7 +147,7 @@ const actionNote = document.getElementById("actionNote");
 
 let currentOrder = null;
 
-/* Utilities */
+/* ---------------- Utilities ---------------- */
 
 function formatCurrency(value) {
   if (value == null) return "-";
@@ -138,14 +158,45 @@ function formatCurrency(value) {
   }).format(Number(value));
 }
 
-/* Render Order */
+function loadPDF(url) {
+  const container = document.getElementById("pdfViewer");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  pdfjsLib.getDocument(url).promise.then(pdf => {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      pdf.getPage(pageNum).then(page => {
+
+        const viewport = page.getViewport({ scale: 1.2 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.style.width = "100%";
+        canvas.style.marginBottom = "16px";
+
+        container.appendChild(canvas);
+
+        page.render({
+          canvasContext: context,
+          viewport: viewport
+        });
+      });
+    }
+  });
+}
+
+/* ---------------- Render Order ---------------- */
 
 function renderOrder(order) {
-  const status = order.status?.toUpperCase() || "UNKNOWN";
-  const payment = order.payment_status?.toUpperCase() || "UNKNOWN";
+
+  currentOrder = order;
 
   orderTitle.textContent = "Order #" + order.id;
-  orderSubtitle.textContent = status + " | " + payment;
+  orderSubtitle.textContent =
+    order.status + " | " + order.payment_status;
 
   orderInfo.innerHTML = `
     <div class="info-card"><div class="info-label">Student</div><div class="info-value">${order.student_name ?? "-"}</div></div>
@@ -153,24 +204,24 @@ function renderOrder(order) {
     <div class="info-card"><div class="info-label">Pages</div><div class="info-value">${order.total_pages ?? "-"}</div></div>
     <div class="info-card"><div class="info-label">Estimated Cost</div><div class="info-value">${formatCurrency(order.estimated_cost)}</div></div>
     <div class="info-card"><div class="info-label">Final Cost</div><div class="info-value">${formatCurrency(order.final_cost)}</div></div>
-    <div class="info-card"><div class="info-label">Created</div><div class="info-value">${new Date(order.created_at).toLocaleString()}</div></div>
+    <div class="info-card"><div class="info-label">Payment Method</div><div class="info-value">${order.payment_method ?? "-"}</div></div>
+    <div class="info-card"><div class="info-label">Verification</div><div class="info-value">${order.payment_verification_status ?? "-"}</div></div>
   `;
+  // Auto-detect payment mode for Mark Paid
+  if (order.payment_method && ["CASH", "UPI"].includes(order.payment_method.toUpperCase())) {
+    paymentMode.value = order.payment_method.toUpperCase();
+  } else {
+    paymentMode.value = "CASH";
+  }
 
-  /* PDF Preview */
+  /* -------- Document -------- */
   if (order.document_url) {
     orderInfo.innerHTML += `
       <div class="info-card" style="grid-column:1/-1">
         <div class="info-label">Document</div>
         <div class="info-value">
           <strong>${order.document_name}</strong>
-          <div style="margin-top:12px">
-            <iframe
-              src="https://docs.google.com/gview?url=${encodeURIComponent(order.document_url)}&embedded=true"
-              width="100%"
-              height="600"
-              style="border-radius:12px;border:1px solid #e0e0e0;">
-            </iframe>
-          </div>
+          <div id="pdfViewer" style="margin-top:12px"></div>
           <div style="margin-top:12px">
             <a class="btn primary" href="${order.document_url}" target="_blank">
               Open / Print PDF
@@ -179,27 +230,89 @@ function renderOrder(order) {
         </div>
       </div>
     `;
+    loadPDF(order.document_url);
   }
 
+  /* -------- UPI Screenshot -------- */
+  if (order.payment_screenshot) {
+    orderInfo.innerHTML += `
+      <div class="info-card" style="grid-column:1/-1">
+        <div class="info-label">UPI Screenshot</div>
+        <div class="info-value">
+          <img src="${order.payment_screenshot}"
+               style="max-width:100%;border-radius:10px;border:1px solid #eee;margin-bottom:12px"/>
+          <div style="display:flex;gap:10px">
+            <button class="btn primary" id="approveBtn">Approve</button>
+            <button class="btn ghost" id="rejectBtn">Reject</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  bindVerificationButtons();
   updateActions(order);
 }
 
-/* Action visibility */
+/* ---------------- Approve / Reject ---------------- */
 
-function updateActions(order) {
-  const status = order.status;
-  const payment = order.payment_status;
+function bindVerificationButtons() {
 
-  startBtn.style.display = status === "PENDING" ? "block" : "none";
-  completeBtn.style.display = status === "IN_PROGRESS" ? "block" : "none";
-  deliverBtn.style.display = status === "COMPLETED" && payment === "PAID" ? "block" : "none";
-  finalizeBtn.style.display = status === "PENDING" && !order.final_cost ? "block" : "none";
-  payBtn.style.display = payment !== "PAID" && order.final_cost ? "block" : "none";
+  const approveBtn = document.getElementById("approveBtn");
+  const rejectBtn = document.getElementById("rejectBtn");
+
+  if (approveBtn) {
+    approveBtn.onclick = () => {
+      api.patch(`/orders/${orderId}/verify-upi`, {
+        decision: "APPROVE"
+      }).then(loadOrder)
+        .catch(() => alert("Approval failed"));
+    };
+  }
+
+  if (rejectBtn) {
+    rejectBtn.onclick = () => {
+      api.patch(`/orders/${orderId}/verify-upi`, {
+        decision: "REJECT"
+      }).then(loadOrder)
+        .catch(() => alert("Rejection failed"));
+    };
+  }
 }
 
-/* Load Order */
+/* ---------------- Actions Visibility ---------------- */
+
+function updateActions(order) {
+
+  startBtn.style.display =
+    order.status === "PENDING" ? "block" : "none";
+
+  completeBtn.style.display =
+    order.status === "IN_PROGRESS" ? "block" : "none";
+
+  deliverBtn.style.display =
+    order.status === "COMPLETED" &&
+    order.payment_status === "PAID" ? "block" : "none";
+
+  finalizeBtn.style.display =
+    order.status === "PENDING" && !order.final_cost ? "block" : "none";
+
+  payBtn.style.display =
+    order.payment_status !== "PAID" && order.final_cost ? "block" : "none";
+  // Hide paymentMode select, show only Mark Paid button with method label
+  if (order.payment_method) {
+    paymentMode.style.display = "none";
+    payBtn.textContent = `Mark Paid (${order.payment_method})`;
+  } else {
+    paymentMode.style.display = "none";
+    payBtn.textContent = "Mark Paid";
+  }
+}
+
+/* ---------------- Load Order ---------------- */
 
 function loadOrder() {
+
   if (!orderId) {
     stateDiv.textContent = "Missing order id.";
     return;
@@ -207,60 +320,71 @@ function loadOrder() {
 
   stateDiv.textContent = "Loading order...";
 
-  adminApi.get(`/admin/orders/${orderId}`)
+  api.get(`/orders/detail/${orderId}`)
     .then(res => {
-      currentOrder = res.data;
       stateDiv.textContent = "";
-      renderOrder(currentOrder);
+      renderOrder(res.data);
       loadInvoice();
     })
-    .catch(err => {
-      console.error(err);
+    .catch(() => {
       stateDiv.textContent = "Failed to load order.";
     });
 }
 
-/* Invoice */
+/* ---------------- Invoice ---------------- */
 
 function loadInvoice() {
-  adminApi.get(`/orders/${orderId}/invoice`)
+  api.get(`/orders/${orderId}/invoice`)
     .then(res => {
       invoiceInfo.innerHTML = `
-        <div class="info-card"><div class="info-label">Invoice</div><div class="info-value">${res.data.invoice_number}</div></div>
-        <div class="info-card"><div class="info-label">Total</div><div class="info-value">${formatCurrency(res.data.total)}</div></div>
+        <div class="info-card">
+          <div class="info-label">Invoice</div>
+          <div class="info-value">${res.data.invoice_number}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Total</div>
+          <div class="info-value">${formatCurrency(res.data.total)}</div>
+        </div>
       `;
     })
     .catch(() => {
-      invoiceInfo.innerHTML = "<div class='panel-subtitle'>No invoice generated.</div>";
+      invoiceInfo.innerHTML =
+        "<div class='panel-subtitle'>No invoice generated.</div>";
     });
 }
 
-/* Action Handlers */
+/* ---------------- Status Actions ---------------- */
 
 function updateStatus(status) {
-  adminApi.patch(`/orders/${orderId}/status`, { status })
+  api.patch(`/orders/${orderId}/status`, { status })
     .then(loadOrder)
-    .catch(() => actionNote.textContent = "Failed to update status.");
+    .catch(() => actionNote.textContent = "Status update failed.");
 }
 
 function finalizeCost() {
-  adminApi.post(`/orders/${orderId}/finalize-cost`)
+  api.post(`/orders/${orderId}/finalize-cost`)
     .then(loadOrder)
-    .catch(() => actionNote.textContent = "Failed to finalize cost.");
+    .catch(() => actionNote.textContent = "Finalize failed.");
 }
 
 function markPaid() {
-  adminApi.patch(`/orders/${orderId}/pay`, { payment_mode: paymentMode.value })
-    .then(loadOrder)
+  // Use the payment_method from the order, not from select
+  const method = currentOrder && currentOrder.payment_method ? currentOrder.payment_method : "CASH";
+  api.patch(`/orders/${orderId}/pay`, {
+    payment_mode: method
+  }).then(loadOrder)
     .catch(() => actionNote.textContent = "Payment failed.");
 }
 
-startBtn.onclick = () => updateStatus("IN_PROGRESS");
-completeBtn.onclick = () => updateStatus("COMPLETED");
-deliverBtn.onclick = () => updateStatus("DELIVERED");
-finalizeBtn.onclick = finalizeCost;
-payBtn.onclick = markPaid;
-refreshBtn.onclick = loadOrder;
+/* ---------------- Bindings ---------------- */
+
+
+if (startBtn) startBtn.onclick = () => updateStatus("IN_PROGRESS");
+if (completeBtn) completeBtn.onclick = () => updateStatus("COMPLETED");
+if (deliverBtn) deliverBtn.onclick = () => updateStatus("DELIVERED");
+if (finalizeBtn) finalizeBtn.onclick = finalizeCost;
+if (payBtn) payBtn.onclick = markPaid;
+if (refreshBtn) refreshBtn.onclick = loadOrder;
 
 loadOrder();
 

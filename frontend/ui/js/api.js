@@ -2,6 +2,21 @@ const api = axios.create({
   baseURL: "http://127.0.0.1:8000"
 });
 
+function isAdminContext() {
+  if (typeof window !== "undefined" && window.IS_ADMIN) return true;
+  if (typeof document !== "undefined") {
+    const body = document.body;
+    if (body?.classList?.contains("admin")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+if (typeof window !== "undefined") {
+  window.api = window.api || api;
+}
+
 const STUDENT_KEY = "PRINTMATE_STUDENT_ID";
 
 // -----------------------------
@@ -27,7 +42,9 @@ function resolveStudentId() {
   const stored = localStorage.getItem(STUDENT_KEY);
 
   if (!stored) {
-    alert("Student ID not found. Please login again.");
+    if (!isAdminContext()) {
+      alert("Student ID not found. Please login again.");
+    }
     return null;
   }
 

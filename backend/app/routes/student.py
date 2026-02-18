@@ -192,7 +192,10 @@ async def upload_document(
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(400, "Unsupported file type")
 
-    # Convert image → PDF
+    # 🔹 Force safe filename
+    safe_name = file.filename.replace(" ", "_")
+
+    # 🔹 Convert image → PDF
     if file.content_type.startswith("image/"):
         image = Image.open(file.file)
         buffer = BytesIO()
@@ -200,9 +203,11 @@ async def upload_document(
         buffer.seek(0)
         file_bytes = buffer.read()
         filename = f"{order_id}.pdf"
+        content_type = "application/pdf"
     else:
         file_bytes = await file.read()
-        filename = file.filename
+        filename = f"{order_id}.pdf"  # 🔥 force standard name
+        content_type = "application/pdf"
 
     with engine.connect() as connection:
 
@@ -222,8 +227,13 @@ async def upload_document(
         if order.status != "PENDING":
             raise HTTPException(400, "Upload allowed only in PENDING state")
 
-        # 🔥 REAL SUPABASE UPLOAD
-        file_url = upload_file(order_id, file_bytes, filename)
+        # 🔥 Upload to Supabase (correct content type)
+        file_url = upload_file(
+            order_id=order_id,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type   # 🔥 pass content type
+        )
 
         doc = connection.execute(
             text("""
@@ -247,7 +257,6 @@ async def upload_document(
         "document_id": doc.id,
         "file_url": file_url
     }
-
 
 # =====================================================
 # 5️⃣ PRINT OPTIONS (SET + GET)
@@ -417,3 +426,99 @@ def student_profile(
         raise HTTPException(404, "Student not found")
 
     return dict(user._mapping)
+
+
+# =====================================================
+# 7️⃣ UPLOAD UPI PAYMENT PROOF
+# =====================================================
+@router.post("/orders/{order_id}/upload-payment-proof")
+async def upload_payment_proof(
+    order_id: str,
+    file: UploadFile = File(...),
+    student_id: str = Header(..., alias="X-STUDENT-ID")
+):
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Only image allowed")
+
+    file_bytes = await file.read()
+    filename = f"payment_{order_id}.jpg"
+
+    file_url = upload_file(order_id, file_bytes, filename, file.content_type)
+
+    with engine.connect() as connection:
+
+        order = connection.execute(
+            text("""
+                SELECT payment_mode
+                FROM orders
+                WHERE id = :id
+                AND student_id = :student_id
+            """),
+            {"id": order_id, "student_id": student_id}
+        ).fetchone()
+
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        if order.payment_mode != "UPI":
+            raise HTTPException(400, "UPI not selected")
+
+        connection.execute(
+            text("""
+                UPDATE orders
+                SET payment_screenshot = :url,
+                    payment_verification_status = 'PENDING'
+                WHERE id = :id
+            """),
+            {"id": order_id, "url": file_url}
+        )
+
+        connection.commit()
+
+    return {"message": "Screenshot uploaded"}
+
+
+@router.patch("/orders/{order_id}/select-payment")
+def select_payment_mode(
+    order_id: str,
+    payload: dict,
+    student_id: str = Header(..., alias="X-STUDENT-ID")
+):
+
+    mode = payload.get("payment_mode")
+
+    if mode not in ("UPI", "CASH"):
+        raise HTTPException(400, "Invalid payment mode")
+
+    with engine.connect() as connection:
+
+        order = connection.execute(
+            text("""
+                SELECT id, status, final_cost
+                FROM orders
+                WHERE id = :id
+                AND student_id = :student_id
+            """),
+            {"id": order_id, "student_id": student_id}
+        ).fetchone()
+
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        if order.final_cost is None:
+            raise HTTPException(400, "Finalize cost first")
+
+        connection.execute(
+            text("""
+                UPDATE orders
+                SET payment_mode = :mode,
+                    payment_status = 'UNPAID'
+                WHERE id = :id
+            """),
+            {"id": order_id, "mode": mode}
+        )
+
+        connection.commit()
+
+    return {"message": "Payment mode selected"}

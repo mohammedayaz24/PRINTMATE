@@ -70,6 +70,12 @@ function getQueryParam(key) {
   }
 }
 
+function safeAddListener(target, type, listener, options) {
+  if (target && typeof target.addEventListener === "function") {
+    target.addEventListener(type, listener, options);
+  }
+}
+
 function formatCurrency(value) {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return "INR 0";
@@ -689,11 +695,11 @@ function ensurePreviewModal() {
     downloadPdfBytes(previewModalBytes, safeName);
   });
 
-  previewModal.addEventListener("click", event => {
+  safeAddListener(previewModal, "click", event => {
     if (event.target === previewModal) closePreviewModal();
   });
 
-  document.addEventListener("keydown", event => {
+  safeAddListener(document, "keydown", event => {
     if (!previewModal?.classList.contains("open")) return;
     if (event.key === "Escape") closePreviewModal();
   });
@@ -851,7 +857,7 @@ function loadShop() {
 }
 
 
-fileInput.addEventListener("change", async event => {
+safeAddListener(fileInput, "change", async event => {
   selectedFile = event.target.files[0];
   if (!selectedFile) return;
 
@@ -907,20 +913,20 @@ function debouncedUpdatePreview() {
   rangeDebounceTimer = setTimeout(() => updateTransformedPreview({ render: true }), 450);
 }
 
-pageRanges.addEventListener("input", () => debouncedUpdatePreview());
-pageRanges.addEventListener("change", () => updateTransformedPreview({ render: true }));
-orientation.addEventListener("change", () => updateTransformedPreview({ render: true }));
-colorMode.addEventListener("change", () => {
+safeAddListener(pageRanges, "input", () => debouncedUpdatePreview());
+safeAddListener(pageRanges, "change", () => updateTransformedPreview({ render: true }));
+safeAddListener(orientation, "change", () => updateTransformedPreview({ render: true }));
+safeAddListener(colorMode, "change", () => {
   calculateEstimate();
   updateTransformedPreview({ render: true });
 });
 
 [sideMode, binding, copies].forEach(el => {
-  el.addEventListener("change", () => calculateEstimate());
-  el.addEventListener("input", () => calculateEstimate());
+  safeAddListener(el, "change", () => calculateEstimate());
+  safeAddListener(el, "input", () => calculateEstimate());
 });
 
-previewBtn.addEventListener("click", event => {
+safeAddListener(previewBtn, "click", event => {
   event.preventDefault();
   if (!transformedBytes) {
     setNote(previewState, "Nothing to preview yet. Upload a PDF first.", "error");
@@ -938,7 +944,7 @@ previewBtn.addEventListener("click", event => {
   });
 });
 
-createBtn.addEventListener("click", async () => {
+safeAddListener(createBtn, "click", async () => {
   if (isProcessing) {
     setNote(createState, "Please wait — processing your PDF.", "loading");
     return;

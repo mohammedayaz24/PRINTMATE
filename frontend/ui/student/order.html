@@ -1,173 +1,483 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PrintMate - Order Studio</title>
-  <link rel="stylesheet" href="../css/theme.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrintMate - Order Studio</title>
+
+<link rel="stylesheet" href="../css/theme.css">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+.preview-panel{ margin-top:20px; }
+.preview-strip canvas{
+  width:100%;
+  margin-bottom:15px;
+  border:1px solid #e5e5e5;
+  border-radius:10px;
+}
+.preview-pages{ font-size:14px; color:#777; }
+</style>
 </head>
+
 <body class="student">
-  <div class="header">
-    <div class="brand">PrintMate</div>
-    <div class="nav">
-      <a href="shops.html">Shops</a>
-      <a class="active" href="order.html">Order</a>
-      <a href="index.html">Dashboard</a>
+
+<div class="header">
+  <div class="brand">PrintMate</div>
+  <div class="nav">
+    <a href="shops.html">Shops</a>
+    <a class="active" href="order.html">Order</a>
+    <a href="index.html">Dashboard</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- STEP 1 -->
+<section class="panel">
+  <div class="panel-title">Step 1: Upload Document</div>
+  <input id="fileInput" type="file" accept="application/pdf" />
+  <div class="grid-2">
+    <div>
+      <label>Detected pages</label>
+      <input id="pageCount" type="number" readonly />
+    </div>
+    <div>
+      <label>File name</label>
+      <input id="fileName" type="text" readonly />
+    </div>
+  </div>
+  <div class="note" id="uploadState"></div>
+</section>
+
+<!-- STEP 2 -->
+<section class="panel">
+  <div class="panel-title">Step 2: Preferences</div>
+
+  <div class="grid-2">
+    <div>
+      <label>Color mode</label>
+      <select id="colorMode">
+        <option value="BW">Black & White</option>
+        <option value="COLOR">Color</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Side mode</label>
+      <select id="sideMode">
+        <option value="SINGLE">Single</option>
+        <option value="DOUBLE">Double</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Orientation</label>
+      <select id="orientation">
+        <option value="PORTRAIT">Portrait</option>
+        <option value="LANDSCAPE">Landscape</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Binding</label>
+      <select id="binding">
+        <option value="NONE">None</option>
+        <option value="SPIRAL">Spiral</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Copies</label>
+      <input id="copies" type="number" min="1" max="10" value="1"/>
+    </div>
+
+    <div>
+      <label>Page Ranges (optional)</label>
+      <input id="pageRanges" type="text" placeholder="1-5, 8, 10-12">
+    </div>
+
+    <div>
+      <label>Estimated Price</label>
+      <div class="stat-value" id="pricePreview">INR 0</div>
     </div>
   </div>
 
-  <div class="container">
-    <section class="page-header">
-      <div>
-        <div class="eyebrow">Order Studio</div>
-        <div class="page-title" id="shopTitle">Shop</div>
-        <div class="subtitle" id="shopMeta">Loading shop details...</div>
-      </div>
-      <div>
-        <div class="pill" id="shopStatus">Loading</div>
-      </div>
-    </section>
+  <div class="preview-panel">
+    <div class="panel-title" style="margin-top:20px;">Live Preview</div>
+    <div class="preview-strip" id="previewStrip"></div>
+    <div class="preview-pages" id="previewPages">0 pages</div>
+    <div class="note" id="previewState">Upload a PDF to preview.</div>
+  </div>
+</section>
 
-    <section class="panel order-shell">
-      <div class="order-hero">
-        <div class="order-badge" id="shopBadge">PM</div>
-        <div>
-          <div class="panel-title">Shop details & pricing</div>
-          <div class="panel-subtitle" id="shopInfo">Rates used for estimates and final billing.</div>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div>
-          <label>Black & white</label>
-          <div class="stat-value">INR 1 / page</div>
-        </div>
-        <div>
-          <label>Color</label>
-          <div class="stat-value">INR 5 / page</div>
-        </div>
-        <div>
-          <label>Double-sided</label>
-          <div class="panel-subtitle">Counts as half the pages (rounded up).</div>
-        </div>
-        <div>
-          <label>Binding</label>
-          <div class="panel-subtitle">Spiral adds INR 20.</div>
-        </div>
-      </div>
-    </section>
+<!-- STEP 3 -->
+<section class="panel">
+  <div class="panel-title">Step 3: Payment Method</div>
 
-    <section class="panel">
-      <div>
-        <div class="panel-title">Step 1: Upload Document</div>
-        <div class="panel-subtitle">Upload a PDF (max 20MB). We count pages automatically.</div>
-      </div>
-      <input id="fileInput" type="file" accept="application/pdf" />
-      <div class="grid-2">
-        <div>
-          <label>Detected pages</label>
-          <input id="pageCount" type="number" readonly />
-        </div>
-        <div>
-          <label>File name</label>
-          <input id="fileName" type="text" readonly />
-        </div>
-      </div>
-      <div class="note" id="uploadState"></div>
-    </section>
+  <select id="paymentMethod">
+    <option value="">Select Payment Method</option>
+    <option value="CASH">Cash</option>
+    <option value="UPI">UPI</option>
+  </select>
 
-    <section class="panel">
-      <div>
-        <div class="panel-title">Step 2: Preferences (Canva-style)</div>
-        <div class="panel-subtitle">Adjust layout, orientation, page ranges, and see a real-time preview.</div>
-      </div>
-      <div class="grid-2">
-        <div>
-          <label for="pageRanges">Page ranges</label>
-          <input id="pageRanges" type="text" placeholder="1-10, 12, 14-16" />
-        </div>
-        <div>
-          <label for="colorMode">Color mode</label>
-          <select id="colorMode">
-            <option value="BW">Black and white</option>
-            <option value="COLOR">Color</option>
-          </select>
-        </div>
-        <div>
-          <label for="sideMode">Side mode</label>
-          <select id="sideMode">
-            <option value="SINGLE">Single</option>
-            <option value="DOUBLE">Double</option>
-          </select>
-        </div>
-        <div>
-          <label for="orientation">Orientation</label>
-          <select id="orientation">
-            <option value="PORTRAIT">Portrait</option>
-            <option value="LANDSCAPE">Landscape</option>
-          </select>
-        </div>
-        <div>
-          <label for="binding">Binding</label>
-          <select id="binding">
-            <option value="NONE">None</option>
-            <option value="SPIRAL">Spiral</option>
-          </select>
-        </div>
-        <div>
-          <label for="copies">Copies</label>
-          <input id="copies" type="number" min="1" max="10" value="1" />
-        </div>
-        <div>
-          <label>Estimated price</label>
-          <div class="stat-value" id="pricePreview">INR 0</div>
-        </div>
-        <div>
-          <label>Preview file</label>
-          <button class="btn ghost" id="previewBtn" type="button">Open Preview</button>
-        </div>
-      </div>
-      <div class="preview-panel">
-        <div class="preview-title">Live preview</div>
-        <div class="preview-canvas">
-          <div class="preview-strip" id="previewStrip" aria-label="Live preview pages"></div>
-          <div class="preview-pages" id="previewPages">0 pages</div>
-        </div>
-        <div class="note" id="previewState">Upload a PDF to preview changes.</div>
-      </div>
-    </section>
+  <div id="upiSection" style="display:none; margin-top:20px;">
+    <canvas id="upiQR"></canvas>
+    <button class="btn primary" id="payNowBtn">Pay via UPI</button>
+  </div>
+</section>
 
-    <select id="paymentMethod">
-  <option value="">Select Payment Method</option>
-  <option value="cash">Cash</option>
-  <option value="upi">UPI</option>
-</select>
+<!-- STEP 4 -->
+<section class="panel">
+  <div class="panel-title">Step 4: Create Order</div>
+  <button class="btn primary" id="createOrder">Create Order</button>
+  <div class="note" id="createState"></div>
+</section>
 
-<div id="upiSection" style="display:none;">
-  <img id="upiQR" width="200"/>
-  <br/>
-  <input type="file" id="paymentProof"/>
-  <button onclick="uploadProof()">Upload Screenshot</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="../vendor/pdfjs/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "../vendor/pdfjs/pdf.worker.min.js";
+</script>
 
-    <section class="panel">
-      <div>
-        <div class="panel-title">Step 3: Create Order</div>
-        <div class="panel-subtitle">We will upload the modified file and save preferences.</div>
-      </div>
-      <button class="btn primary" id="createOrder">Create Order</button>
-      <div class="note" id="createState"></div>
-    </section>
-  </div>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <!-- Self-hosted vendors (avoids Tracking Prevention blocking CDN scripts). -->
-  <script src="../vendor/pdfjs/pdf.min.js"></script>
-  <script src="../vendor/pdf-lib/pdf-lib.min.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/order.js"></script>
-</body>
-</html>
+const SHOP_UPI_ID = "mohammedayaz2411@oksbi";
+const SHOP_NAME = "PRINTMATE";
+const API_BASE = "http://127.0.0.1:8000";
+const api = axios.create({ baseURL: API_BASE, withCredentials: true });
+
+const urlParams = new URLSearchParams(window.location.search);
+const shopId = urlParams.get("shop_id");
+
+const fileInput = document.getElementById("fileInput");
+const pageCount = document.getElementById("pageCount");
+const fileName = document.getElementById("fileName");
+const uploadState = document.getElementById("uploadState");
+
+const pageRangesInput = document.getElementById("pageRanges");
+const colorMode = document.getElementById("colorMode");
+const sideMode = document.getElementById("sideMode");
+const orientation = document.getElementById("orientation");
+const binding = document.getElementById("binding");
+const copies = document.getElementById("copies");
+
+const previewStrip = document.getElementById("previewStrip");
+const previewPages = document.getElementById("previewPages");
+const previewState = document.getElementById("previewState");
+
+const pricePreview = document.getElementById("pricePreview");
+const createBtn = document.getElementById("createOrder");
+const createState = document.getElementById("createState");
+
+const paymentMethod = document.getElementById("paymentMethod");
+const upiSection = document.getElementById("upiSection");
+const upiQR = document.getElementById("upiQR");
+const payNowBtn = document.getElementById("payNowBtn");
+
+let detectedPages = 0;
+let pdfDoc = null;
+let calculatedAmount = 0;
+let selectedFile = null;
+let latestUpiLink = "";
+let currentOrderId = null;
+
+function parsePageRanges(input) {
+  if (!input) return null;
+  const pages = new Set();
+  input.split(",").forEach(part => {
+    const trimmed = part.trim();
+    if (!trimmed) return;
+    if (trimmed.includes("-")) {
+      const [start, end] = trimmed.split("-").map(Number);
+      if (Number.isNaN(start) || Number.isNaN(end) || start > end) return;
+      for (let i = start; i <= end; i++) pages.add(i);
+    } else {
+      const page = Number(trimmed);
+      if (!Number.isNaN(page)) pages.add(page);
+    }
+  });
+  return Array.from(pages).filter(p => p > 0 && p <= detectedPages);
+}
+
+fileInput.addEventListener("change", async (e) => {
+  selectedFile = e.target.files[0];
+  if (!selectedFile) return;
+
+  if (selectedFile.size > 20 * 1024 * 1024) {
+    alert("File too large (Max 20MB)");
+    return;
+  }
+
+  fileName.value = selectedFile.name;
+  uploadState.innerText = "Parsing document...";
+
+  const reader = new FileReader();
+  reader.onload = async function () {
+    const typedarray = new Uint8Array(this.result);
+    pdfDoc = await pdfjsLib.getDocument({
+      data: typedarray,
+      disableStream: true,
+      disableAutoFetch: true
+    }).promise;
+
+    detectedPages = pdfDoc.numPages;
+    pageCount.value = detectedPages;
+    uploadState.innerText = "Document ready.";
+    renderPreview();
+    calculatePrice();
+  };
+  reader.readAsArrayBuffer(selectedFile);
+});
+
+async function renderPreview() {
+  if (!pdfDoc) return;
+
+  previewStrip.innerHTML = "";
+  let selectedPages = parsePageRanges(pageRangesInput.value);
+  if (!selectedPages || selectedPages.length === 0) {
+    selectedPages = Array.from({ length: detectedPages }, (_, i) => i + 1);
+  }
+
+  const MAX_PREVIEW = 10;
+  for (let pageNumber of selectedPages.slice(0, MAX_PREVIEW)) {
+    const page = await pdfDoc.getPage(pageNumber);
+    const viewport = page.getViewport({
+      scale: 0.8,
+      rotation: orientation.value === "LANDSCAPE" ? 90 : 0
+    });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({
+      canvasContext: ctx,
+      viewport: viewport
+    }).promise;
+
+    if (colorMode.value === "BW") {
+      canvas.style.filter = "grayscale(100%)";
+    }
+
+    previewStrip.appendChild(canvas);
+  }
+
+  previewPages.innerText = `${selectedPages.length} pages selected`;
+  previewState.innerText = "Preview generated.";
+}
+
+function calculatePrice() {
+  if (!pdfDoc) {
+    pricePreview.innerText = "INR 0";
+    return;
+  }
+
+  let selectedPages = parsePageRanges(pageRangesInput.value);
+  let pages = selectedPages && selectedPages.length > 0
+    ? selectedPages.length
+    : detectedPages;
+
+  if (sideMode.value === "DOUBLE") {
+    pages = Math.ceil(pages / 2);
+  }
+
+  const rate = colorMode.value === "COLOR" ? 5 : 1;
+  let total = pages * rate * (Number(copies.value) || 1);
+
+  if (binding.value === "SPIRAL") {
+    total += 20;
+  }
+
+  calculatedAmount = total;
+  pricePreview.innerText = "INR " + total;
+}
+
+function renderUpiLink(link) {
+  // Clear QR canvas
+  const ctx = upiQR.getContext("2d");
+  ctx.clearRect(0, 0, upiQR.width, upiQR.height);
+  if (!link) {
+    upiQR.style.display = "none";
+    payNowBtn.disabled = true;
+    payNowBtn.onclick = null;
+    return;
+  }
+  upiQR.style.display = "block";
+  QRCode.toCanvas(upiQR, link, { width: 200 }, function (error) {
+    if (error) {
+      upiQR.style.display = "none";
+      payNowBtn.disabled = true;
+      payNowBtn.onclick = null;
+    } else {
+      payNowBtn.disabled = false;
+      payNowBtn.onclick = () => window.open(link, "_blank");
+    }
+  });
+}
+
+paymentMethod.addEventListener("change", () => {
+
+  if (paymentMethod.value === "UPI") {
+
+    if (!calculatedAmount || calculatedAmount <= 0) {
+      alert("Please upload document and select preferences first.");
+      paymentMethod.value = "";
+      return;
+    }
+
+    // 🔥 Generate UPI link directly using calculatedAmount
+    const upiLink =
+      `upi://pay?pa=${SHOP_UPI_ID}` +
+      `&pn=${SHOP_NAME}` +
+      `&am=${calculatedAmount}` +
+      `&cu=INR` +
+      `&tn=PrintMate`;
+
+    latestUpiLink = upiLink;
+
+    upiSection.style.display = "block";
+    renderUpiLink(upiLink);
+
+  } else {
+    upiSection.style.display = "none";
+    renderUpiLink("");
+  }
+});
+
+
+[colorMode, sideMode, orientation, binding, copies]
+  .forEach(el => el.addEventListener("change", () => {
+    renderPreview();
+    calculatePrice();
+  }));
+
+pageRangesInput.addEventListener("input", () => {
+  renderPreview();
+  calculatePrice();
+});
+
+createBtn.addEventListener("click", function(e) {
+  e.preventDefault();
+  submitOrder();
+});
+
+async function submitOrder() {
+  if (!selectedFile) {
+    alert("Upload PDF first");
+    return;
+  }
+  if (!shopId) {
+    alert("Shop not selected.");
+    return;
+  }
+  const studentId = localStorage.getItem("PRINTMATE_STUDENT_ID");
+  if (!studentId) {
+    alert("Student not logged in.");
+    return;
+  }
+  if (!paymentMethod.value) {
+    alert("Select a payment method.");
+    return;
+  }
+  createState.innerText = "Creating order...";
+  currentOrderId = null;
+  latestUpiLink = "";
+  if (paymentMethod.value !== "UPI") {
+    renderUpiLink("");
+  }
+  try {
+    const orderPayload = {
+      shop_id: shopId,
+      total_pages: detectedPages,
+      estimated_cost: calculatedAmount
+    };
+    const { data: orderData } = await api.post(
+      "/orders/",
+      orderPayload,
+      { headers: { "X-STUDENT-ID": studentId } }
+    );
+    currentOrderId = orderData.id;
+    createState.innerText = "Uploading document...";
+    const uploadData = new FormData();
+    uploadData.append("file", selectedFile);
+    await api.post(
+      `/student/orders/${currentOrderId}/upload`,
+      uploadData,
+      {
+        headers: {
+          "X-STUDENT-ID": studentId
+        }
+      }
+    );
+    createState.innerText = "Saving print options...";
+    const printPayload = {
+      page_ranges: pageRangesInput.value.trim() || "",
+      color_mode: colorMode.value,
+      side_mode: sideMode.value,
+      orientation: orientation.value,
+      binding: binding.value,
+      copies: Number(copies.value) || 1
+    };
+    const { data: printData } = await api.post(
+      `/student/orders/${currentOrderId}/print-options`,
+      printPayload,
+      {
+        headers: {
+          "X-STUDENT-ID": studentId
+        }
+      }
+    );
+    const backendPrice = printData.estimated_cost ?? calculatedAmount;
+    calculatedAmount = backendPrice;
+    pricePreview.innerText = "INR " + backendPrice;
+    createState.innerText = "Setting payment method...";
+    await api.patch(
+      `/student/payment/set-method/${currentOrderId}`,
+      null,
+      {
+        params: { method: paymentMethod.value },
+        headers: { "X-STUDENT-ID": studentId }
+      }
+    );
+    if (paymentMethod.value === "UPI") {
+
+      const upiLink =
+        `upi://pay?pa=${SHOP_UPI_ID}` +
+        `&pn=${SHOP_NAME}` +
+        `&am=${calculatedAmount}` +
+        `&cu=INR` +
+        `&tn=PrintMate`;
+
+      latestUpiLink = upiLink;
+      renderUpiLink(upiLink);
+    }
+
+    createState.innerText = "Order ready. Proceed with payment.";
+  } catch (err) {
+    console.error(err);
+    let message = "Order failed.";
+    if (err?.response?.status === 403) {
+      message = "CORS error: Backend is not allowing this request. Please check server CORS settings.";
+    } else if (err?.message && err?.message.includes("Network Error")) {
+      message = "Network Error: Unable to reach backend. Please check server and CORS settings.";
+    } else {
+      message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Order failed.";
+    }
+    createState.innerText = message;
+    latestUpiLink = "";
+    renderUpiLink("");
+  }
+}
+</script>

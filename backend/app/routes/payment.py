@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from sqlalchemy import text
 from app.database import engine
 import shutil
@@ -11,20 +11,29 @@ router = APIRouter()
 # ===============================
 @router.patch("/student/payment/set-method/{order_id}")
 def set_payment_method(order_id: str, method: str):
+    if method not in ("CASH", "UPI"):
+        raise HTTPException(400, "Invalid payment method")
 
     with engine.connect() as conn:
-        conn.execute(text("""
-            UPDATE orders
-            SET payment_method = :method,
-                payment_status = 'PENDING'
-            WHERE id = :id
-        """), {
-            "method": method,
-            "id": order_id
-        })
+        order = conn.execute(
+            text("SELECT id, payment_method, status FROM orders WHERE id = :id"),
+            {"id": order_id}
+        ).fetchone()
+        if not order:
+            raise HTTPException(404, "Order not found")
+
+        # Only update payment_method, do not change status to an invalid value
+        conn.execute(
+            text("""
+                UPDATE orders
+                SET payment_method = :method
+                WHERE id = :id
+            """),
+            {"method": method, "id": order_id}
+        )
+        conn.commit()
 
     return {"message": "Payment method saved"}
-
 
 # ===============================
 # GENERATE UPI LINK
@@ -33,15 +42,37 @@ def set_payment_method(order_id: str, method: str):
 def generate_upi(order_id: str):
 
     with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT total_amount FROM orders WHERE id = :id
-        """), {"id": order_id})
+        result = conn.execute(
+            text("""
+                SELECT final_cost
+                FROM orders
+                WHERE id = :id
+            """),
+            {"id": order_id}
+        ).fetchone()
 
-        amount = result.scalar()
+        if not result:
+            raise HTTPException(status_code=404, detail="Order not found")
 
-    upi_link = f"upi://pay?pa=printmate@upi&pn=PrintMate&am={amount}&cu=INR&tn=Order{order_id}"
+        amount = result.final_cost if result.final_cost is not None else result.estimated_cost
 
-    return {"upi_link": upi_link}
+        if amount is None:
+            raise HTTPException(status_code=400, detail="No cost available for this order")
+
+
+    upi_link = (
+        f"upi://pay?"
+        f"pa=printmate@upi"
+        f"&pn=PrintMate"
+        f"&am={amount}"
+        f"&cu=INR"
+        f"&tn=Order{order_id}"
+    )
+
+    return {
+        "upi_link": upi_link,
+        "amount": amount
+    }
 
 
 # ===============================

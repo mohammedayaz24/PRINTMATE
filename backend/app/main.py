@@ -19,14 +19,24 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI()
 
 # CORS: allow local dev servers + MVP wildcard.
+origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000"
+]
+
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For demo
+    allow_origins=["http://127.0.0.1:5500"],  # or ["*"] for all origins (not recommended for production)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 UPLOAD_DIR = "app/uploads"
 
 if not os.path.exists(UPLOAD_DIR):

@@ -1,6 +1,11 @@
-window.adminApi = axios.create({
+const adminClient = window.api || axios.create({
   baseURL: "http://127.0.0.1:8000"
 });
+
+if (typeof window !== "undefined") {
+  window.api = window.api || adminClient;
+  window.adminApi = window.adminApi || adminClient;
+}
 
 const SHOP_KEY = "PRINTMATE_SHOP_ID";
 const ROLE_KEY = "PRINTMATE_ROLE";
@@ -51,9 +56,12 @@ function resolveShopId(role) {
   return shopId || null;
 }
 
-window.adminApi.interceptors.request.use(config => {
-  const role = resolveRole();
+adminClient.interceptors.request.use(config => {
+  const role = resolveRole() || "ADMIN";
   const shopId = resolveShopId(role);
+
+  // Ensure headers object exists
+  config.headers = config.headers || {};
 
   config.headers["X-ROLE"] = role;
 
@@ -63,3 +71,4 @@ window.adminApi.interceptors.request.use(config => {
 
   return config;
 });
+
